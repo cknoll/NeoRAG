@@ -39,7 +39,8 @@ def get_query_engine():
     # Assemble query engine
     query_engine = RetrieverQueryEngine.from_args(
         retriever=base_retriever,
-        node_postprocessors=[reranker]
+        node_postprocessors=[reranker],
+        llm=None  # Disable LLM since we only need retrieval
     )
 
     return query_engine
