@@ -1,0 +1,4 @@
+
+*.log
+tmp_*
+# put other patterns here
