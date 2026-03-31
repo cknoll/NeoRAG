@@ -1,3 +1,4 @@
+from llama_index.core import VectorStoreIndex
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.retrievers import VectorIndexRetriever
 # from llama_index.postprocessor.sentence_transformers_rerank import SentenceTransformerRerank
