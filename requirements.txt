@@ -1,7 +1,9 @@
 llama-index==0.10.0
 llama-index-vector-stores-qdrant
 llama-index-embeddings-huggingface
-llama-index-postprocessor-sentence-transformers-rerank
+llama-index
+sentence-transformers
+torch
 qdrant-client
 sentence-transformers
 click
