@@ -36,7 +36,15 @@ def get_query_engine():
         top_n=TOP_K_FINAL
     )
 
+    # debugging
+    from ipydex import IPS
     # Assemble query engine
+
+    import os
+    os.environ["OPENAI_API_KEY"] = "dummy"
+    IPS(-1)
+
+
     query_engine = RetrieverQueryEngine.from_args(
         retriever=base_retriever,
         node_postprocessors=[reranker],
