@@ -4,14 +4,16 @@ from llama_index.core.retrievers import VectorIndexRetriever
 # from llama_index.postprocessor.sentence_transformers_rerank import SentenceTransformerRerank
 from llama_index.core.postprocessor import SentenceTransformerRerank
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from qdrant_client import QdrantClient
 from .config import QDRANT_PATH, COLLECTION_NAME, EMBEDDING_MODEL, TOP_K_BASE, TOP_K_FINAL, RERANK_MODEL
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 
 def get_query_engine():
     """Create retrieval engine with re-ranking."""
     # Reuse existing index
+    client = QdrantClient(path=QDRANT_PATH)
     vector_store = QdrantVectorStore(
-        path=QDRANT_PATH,
+        client=client,
         collection_name=COLLECTION_NAME
     )
 
