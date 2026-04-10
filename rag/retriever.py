@@ -8,10 +8,30 @@ from qdrant_client import QdrantClient
 from .config import QDRANT_PATH, COLLECTION_NAME, EMBEDDING_MODEL, TOP_K_BASE, TOP_K_FINAL, RERANK_MODEL
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 
+def _patch_qdrant_client(client):
+    """Patch QdrantClient if .search() was removed (qdrant-client >= 1.12)."""
+    if not hasattr(client, "search") and hasattr(client, "query_points"):
+        from qdrant_client.models import models
+
+        def _search(collection_name, query_vector, limit, query_filter=None, **kwargs):
+            from qdrant_client.models import models as _models
+            result = client.query_points(
+                collection_name=collection_name,
+                query=query_vector,
+                limit=limit,
+                query_filter=query_filter,
+                **kwargs,
+            )
+            return result.points
+
+        client.search = _search
+    return client
+
+
 def get_query_engine():
     """Create retrieval engine with re-ranking."""
     # Reuse existing index
-    client = QdrantClient(path=QDRANT_PATH)
+    client = _patch_qdrant_client(QdrantClient(path=QDRANT_PATH))
     vector_store = QdrantVectorStore(
         client=client,
         collection_name=COLLECTION_NAME
