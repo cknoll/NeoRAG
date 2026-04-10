@@ -26,13 +26,18 @@ def index(data_dir):
 def query(query):
     """Query the RAG system."""
     click.echo(f"Query: {query}")
-    query_engine = get_query_engine()
+    base_retriever, reranker = get_query_engine()
 
+    # Retrieve nodes using the retriever
+    from llama_index.core import QueryBundle
+    query_bundle = QueryBundle(query)
+    nodes = base_retriever.retrieve(query_bundle)
 
-    response = query_engine.query(query)
+    # Apply reranker
+    nodes = reranker.postprocess_nodes(nodes, query_bundle)
 
     click.echo("\n--- Results ---")
-    for i, node in enumerate(response.source_nodes, 1):
+    for i, node in enumerate(nodes, 1):
         click.echo(f"\n{i}. Score: {node.score:.3f}")
         click.echo(f"   Source: {node.metadata.get('source', 'unknown')}")
         click.echo(f"   Text: {node.text[:200]}...")

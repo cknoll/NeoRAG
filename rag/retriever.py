@@ -56,13 +56,5 @@ def get_query_engine():
         top_n=TOP_K_FINAL
     )
 
-    import os
-    os.environ["OPENAI_API_KEY"] = "dummy"
-
-    query_engine = RetrieverQueryEngine.from_args(
-        retriever=base_retriever,
-        node_postprocessors=[reranker],
-        llm=None  # Disable LLM since we only need retrieval
-    )
-
-    return query_engine
+    # Return retriever directly - no LLM needed for retrieval-only mode
+    return base_retriever, reranker
