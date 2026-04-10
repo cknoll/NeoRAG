@@ -42,7 +42,7 @@ def get_query_engine():
 
     import os
     os.environ["OPENAI_API_KEY"] = "dummy"
-    IPS(-1)
+    # IPS(-1)
 
 
     query_engine = RetrieverQueryEngine.from_args(
