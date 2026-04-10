@@ -56,6 +56,9 @@ def get_query_engine():
         top_n=TOP_K_FINAL
     )
 
+    import os
+    os.environ["OPENAI_API_KEY"] = "dummy"
+
     query_engine = RetrieverQueryEngine.from_args(
         retriever=base_retriever,
         node_postprocessors=[reranker],
