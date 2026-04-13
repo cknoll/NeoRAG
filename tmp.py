@@ -8,7 +8,7 @@ dataset = datasets.load_dataset("DiscoResearch/germanrag", split="train")
 
 
 from ragas import evaluate
-from ragas.metrics.collections import (
+from ragas.metrics import (
     context_precision,
     context_recall,
     faithfulness,
@@ -50,36 +50,22 @@ ragas_dataset = Dataset.from_pandas(ragas_input_df)
 # In[10]:
 
 
-from ragas.metrics.collections import ContextPrecision, ContextRecall, Faithfulness, AnswerRelevancy
-
-
-# In[13]:
-
-
 import tomllib
 with open("config.toml", "rb") as fp:
     config = tomllib.load(fp)
 
+from langchain_openai import ChatOpenAI
 
-# In[18]:
-
-
-from ragas.llms import llm_factory
-from openai import OpenAI
-
-client = OpenAI(
+langchain_llm = ChatOpenAI(
+    model="google/gemini-2.0-flash-001",
     api_key=config["openrouter_api_key"],
     base_url="https://openrouter.ai/api/v1",
 )
 
-llm = llm_factory("gemini-flash-1.5", client=client)
+metrics = [context_precision]
 
-# now use this llm
-
-metrics = [ContextPrecision(llm=llm), ]#, ContextRecall(), Faithfulness(), AnswerRelevancy()]
-
-# this causes an TypeError:
 result = evaluate(
     ragas_dataset,
     metrics=metrics,
+    llm=langchain_llm,
 )
