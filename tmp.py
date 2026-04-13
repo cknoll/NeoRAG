@@ -68,19 +68,15 @@ from ragas.llms import LangchainLLMWrapper
 # from langchain_openai import ChatOpenAI # oder dein lokales Modell
 
 from openai import OpenAI
-from ragas.llms import llm_factory
+from langchain_openai import ChatOpenAI
 
-# ChatOpenAI(
-#     model="google/gemini-flash-1.5",
-#     openai_api_base="https://openrouter.ai/api/v1",
-#     openai_api_key=config["openrouter_api_key"]
-# )
-
-client = OpenAI(
-    api_key=config["openrouter_api_key"],
-    base_url="https://openrouter.ai/api/v1",
+chat_openai_llm = ChatOpenAI(
+    model="google/gemini-flash-1.5",
+    openai_api_base="https://openrouter.ai/api/v1",
+    openai_api_key=config["openrouter_api_key"]
 )
-llm = llm_factory("gemini-flash-1.5", provider="gemini-flash-1.5", client=client)
+
+llm = LangchainLLMWrapper(chat_openai_llm)
 
 
 # this causes an error
