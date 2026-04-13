@@ -64,19 +64,22 @@ with open("config.toml", "rb") as fp:
 # In[18]:
 
 
-from ragas.llms import LangchainLLMWrapper
-# from langchain_openai import ChatOpenAI # oder dein lokales Modell
-
+from ragas.llms import llm_factory
 from openai import OpenAI
-from langchain_openai import ChatOpenAI
 
-chat_openai_llm = ChatOpenAI(
-    model="google/gemini-flash-1.5",
-    openai_api_base="https://openrouter.ai/api/v1",
-    openai_api_key=config["openrouter_api_key"]
+client = OpenAI(
+    api_key=config["openrouter_api_key"],
+    base_url="https://openrouter.ai/api/v1",
 )
 
-llm = LangchainLLMWrapper(chat_openai_llm)
+llm = llm_factory("gemini-flash-1.5", client=client)
 
+# now use this llm
 
-# this causes an error
+metrics = [ContextPrecision(llm=llm), ]#, ContextRecall(), Faithfulness(), AnswerRelevancy()]
+
+# this causes an TypeError:
+result = evaluate(
+    ragas_dataset,
+    metrics=metrics,
+)
