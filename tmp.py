@@ -7,6 +7,17 @@ warnings.filterwarnings(
     category=DeprecationWarning,
 )
 
+# Current Ragas versions have an API mismatch:
+# The `evaluate()` function expects old-style metrics from `ragas.metrics`
+# (which are subclasses of `ragas.metrics.base.Metric`).
+# However, the new `ragas.metrics.collections` metrics are NOT subclasses of `ragas.metrics.base.Metric`.
+# To make this code future-compatible, when `ragas.metrics` imports are finally removed in v1.0,
+# you will need to:
+# 1. Update imports to `from ragas.metrics.collections import ...`
+# 2. Rework the evaluation loop to call `metric.single_turn_score()` or `metric.score()` directly on each sample,
+#    or ensure `evaluate()` is updated in Ragas to properly handle the new metric types.
+#    Alternatively, if a new `evaluate_v2()` function exists, use that.
+
 import datasets
 
 
