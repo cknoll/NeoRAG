@@ -1,5 +1,12 @@
 
 
+import warnings
+warnings.filterwarnings(
+    "ignore",
+    message=r"Importing .* from 'ragas\.metrics' is deprecated",
+    category=DeprecationWarning,
+)
+
 import datasets
 
 
