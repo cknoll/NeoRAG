@@ -59,6 +59,34 @@ Key settings in `rag/config.py`:
 - `TOP_K_BASE`: 20 (retrieve more for re-ranking)
 - `TOP_K_FINAL`: 3 (final results after re-ranking)
 
+## Evaluate with GermanRAG Dataset
+
+The `tmp.py` script evaluates the RAG system against the [DiscoResearch/germanrag](https://huggingface.co/datasets/DiscoResearch/germanrag) dataset using [Ragas](https://docs.ragas.io/) metrics.
+
+### Prerequisites
+
+1. **Build the index first** with your own data (see *Build Index* above).
+2. Create a `config.toml` in the project root with your OpenRouter API key:
+   ```toml
+   openrouter_api_key = "sk-or-..."
+   ```
+3. Install additional dependencies:
+   ```bash
+   pip install ragas datasets langchain-openai
+   ```
+
+### Run the evaluation
+
+```bash
+python tmp.py
+```
+
+The script will:
+1. Load the GermanRAG dataset from Hugging Face.
+2. For each test question, run the full two-stage retrieval pipeline (ANN search → cross-encoder reranking) to find relevant chunks.
+3. Use the configured LLM (via OpenRouter) to generate an answer from the retrieved context.
+4. Evaluate the results with Ragas metrics (e.g. `context_precision`).
+
 ## Accuracy Improvement Tips
 
 1. **Verify chunk quality**: Chunks should be 300-500 tokens, coherent

@@ -35,42 +35,43 @@ from ragas.metrics import (
 import pandas as pd
 
 
-# TODO-Aider: Change the following dummy function such that it uses the actual RAG system from this package.
-# Also add information to the readme on how to apply our rag system to the germanrag dataset (probably this also requires changes to the code.)
+from rag.retriever import get_query_engine
+from llama_index.core import QueryBundle
 
-# 1. Deine RAG-Pipeline Funktion (Dummy-Beispiel)
-def run_my_rag_system(question):
-    # Hier rufst du deinen Retriever und dein LLM auf
-    retrieved_docs = ["Das ist ein gefundener Textbaustein aus deiner DB."]
-    generated_answer = "Das ist die Antwort deines Systems."
+# Initialise the two-stage retrieval pipeline once
+_base_retriever, _reranker = get_query_engine()
+
+def run_my_rag_system(question, llm=None):
+    """Run the actual RAG pipeline: retrieve, rerank, then generate an answer.
+
+    Parameters
+    ----------
+    question : str
+        The user query.
+    llm : langchain LLM, optional
+        If provided, used to generate an answer from the retrieved context.
+        Otherwise a placeholder answer is returned.
+    """
+    query_bundle = QueryBundle(question)
+
+    # Stage 1: ANN retrieval from Qdrant
+    nodes = _base_retriever.retrieve(query_bundle)
+    # Stage 2: cross-encoder reranking
+    nodes = _reranker.postprocess_nodes(nodes, query_bundle)
+
+    retrieved_docs = [node.text for node in nodes]
+
+    if llm is not None:
+        context = "\n\n".join(retrieved_docs)
+        prompt = (
+            f"Beantworte die folgende Frage basierend auf dem gegebenen Kontext.\n\n"
+            f"Kontext:\n{context}\n\nFrage: {question}\nAntwort:"
+        )
+        generated_answer = llm.invoke(prompt).content
+    else:
+        generated_answer = ""
+
     return generated_answer, retrieved_docs
-
-# 2. Testdaten sammeln (z.B. für die ersten 10 Einträge)
-N = 10
-test_results = []
-for i in range(N):
-    row = dataset[i]
-    q = row['question']
-    gt = row['answer'] # Das ist die Gold-Antwort aus GermanRAG
-
-    # Dein System fragen
-    pred_answer, pred_contexts = run_my_rag_system(q)
-
-    test_results.append({
-        "question": q,
-        "answer": pred_answer,
-        "contexts": pred_contexts,
-        "ground_truth": gt
-    })
-
-# In ein Hugging Face Dataset konvertieren
-from datasets import Dataset
-ragas_input_df = pd.DataFrame(test_results)
-ragas_dataset = Dataset.from_pandas(ragas_input_df)
-
-
-# In[10]:
-
 
 import tomllib
 with open("config.toml", "rb") as fp:
@@ -83,6 +84,29 @@ langchain_llm = ChatOpenAI(
     api_key=config["openrouter_api_key"],
     base_url="https://openrouter.ai/api/v1",
 )
+
+# 2. Testdaten sammeln (z.B. für die ersten 10 Einträge)
+N = 10
+test_results = []
+for i in range(N):
+    row = dataset[i]
+    q = row['question']
+    gt = row['answer'] # Das ist die Gold-Antwort aus GermanRAG
+
+    # Dein System fragen
+    pred_answer, pred_contexts = run_my_rag_system(q, llm=langchain_llm)
+
+    test_results.append({
+        "question": q,
+        "answer": pred_answer,
+        "contexts": pred_contexts,
+        "ground_truth": gt
+    })
+
+# In ein Hugging Face Dataset konvertieren
+from datasets import Dataset
+ragas_input_df = pd.DataFrame(test_results)
+ragas_dataset = Dataset.from_pandas(ragas_input_df)
 
 metrics = [context_precision]
 
