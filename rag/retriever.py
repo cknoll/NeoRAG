@@ -45,7 +45,7 @@ def _patch_qdrant_client(client):
     return client
 
 
-def get_query_engine():
+def get_query_engine(collection_name=None):
     """Create and return a two-stage retrieval pipeline (retriever + reranker).
 
     Stage 1 – Retriever: embeds the query and fetches TOP_K_BASE candidate chunks
@@ -54,14 +54,21 @@ def get_query_engine():
     Stage 2 – Reranker: a cross-encoder rescores each candidate against the query,
     keeping only TOP_K_FINAL results (high precision).
 
+    Parameters
+    ----------
+    collection_name : str, optional
+        Qdrant collection to query. Defaults to COLLECTION_NAME from config.
+
     Returns a (base_retriever, reranker) tuple so callers can run retrieval
     without requiring an LLM for answer synthesis.
     """
+    if collection_name is None:
+        collection_name = COLLECTION_NAME
     # Connect to the on-disk Qdrant instance that was populated during indexing
     client = _patch_qdrant_client(QdrantClient(path=QDRANT_PATH))
     vector_store = QdrantVectorStore(
         client=client,
-        collection_name=COLLECTION_NAME
+        collection_name=collection_name
     )
 
     # Local embedding model – must be the same model used during indexing so that

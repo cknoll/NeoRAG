@@ -65,27 +65,29 @@ The `tmp.py` script evaluates the RAG system against the [DiscoResearch/germanra
 
 ### Prerequisites
 
-1. **Build the index first** with your own data (see *Build Index* above).
-2. Create a `config.toml` in the project root with your OpenRouter API key:
+1. Create a `config.toml` in the project root with your OpenRouter API key:
    ```toml
    openrouter_api_key = "sk-or-..."
    ```
-3. Install additional dependencies:
+2. Install additional dependencies:
    ```bash
    pip install ragas datasets langchain-openai
    ```
 
 ### Run the evaluation
 
+Run `interactive-testing.py` interactively (e.g. in VS Code) or as a script:
+
 ```bash
-python tmp.py
+python interactive-testing.py
 ```
 
 The script will:
 1. Load the GermanRAG dataset from Hugging Face.
-2. For each test question, run the full two-stage retrieval pipeline (ANN search → cross-encoder reranking) to find relevant chunks.
-3. Use the configured LLM (via OpenRouter) to generate an answer from the retrieved context.
-4. Evaluate the results with Ragas metrics (e.g. `context_precision`).
+2. Extract all unique context passages and index them into a **separate** Qdrant collection (`germanrag_chunks`), leaving your default index untouched.
+3. For each test question, run the full two-stage retrieval pipeline (ANN search → cross-encoder reranking) against the GermanRAG collection.
+4. Use the configured LLM (via OpenRouter) to generate an answer from the retrieved context.
+5. Evaluate the results with Ragas metrics (e.g. `context_precision`).
 
 ## Accuracy Improvement Tips
 

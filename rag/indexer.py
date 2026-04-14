@@ -4,12 +4,22 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from qdrant_client import QdrantClient
 from .config import QDRANT_PATH, COLLECTION_NAME, EMBEDDING_MODEL
 
-def build_index(documents):
-    """Build vector index with Qdrant."""
+def build_index(documents, collection_name=None):
+    """Build vector index with Qdrant.
+
+    Parameters
+    ----------
+    documents : list
+        Documents to index.
+    collection_name : str, optional
+        Qdrant collection name. Defaults to COLLECTION_NAME from config.
+    """
+    if collection_name is None:
+        collection_name = COLLECTION_NAME
     client = QdrantClient(path=QDRANT_PATH)
     vector_store = QdrantVectorStore(
         client=client,
-        collection_name=COLLECTION_NAME
+        collection_name=collection_name
     )
     
     storage_context = StorageContext.from_defaults(vector_store=vector_store)

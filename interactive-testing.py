@@ -39,11 +39,30 @@ from ragas.metrics import (
 import pandas as pd
 
 
+from llama_index.core import Document, QueryBundle
+from rag.indexer import build_index
 from rag.retriever import get_query_engine
-from llama_index.core import QueryBundle
 
-# Initialise the two-stage retrieval pipeline once
-_base_retriever, _reranker = get_query_engine()
+GERMANRAG_COLLECTION = "germanrag_chunks"
+
+# --- Build a Qdrant index from the GermanRAG contexts (once) ---
+# Extract all unique context passages and index them into a separate collection
+# so the retriever searches GermanRAG content, not the default podcast data.
+_all_contexts = set()
+for _row in dataset:
+    for _ctx in _row["contexts"]:
+        _all_contexts.add(_ctx)
+
+_germanrag_docs = [
+    Document(text=ctx, metadata={"source": "germanrag"})
+    for ctx in _all_contexts
+]
+print(f"Indexing {len(_germanrag_docs)} unique GermanRAG contexts into '{GERMANRAG_COLLECTION}' ...")
+build_index(_germanrag_docs, collection_name=GERMANRAG_COLLECTION)
+print("Done.")
+
+# Initialise the two-stage retrieval pipeline against the GermanRAG collection
+_base_retriever, _reranker = get_query_engine(collection_name=GERMANRAG_COLLECTION)
 
 def run_my_rag_system(question, llm=None):
     """Run the actual RAG pipeline: retrieve, rerank, then generate an answer.
@@ -117,11 +136,9 @@ metrics = [context_precision]
 # %%
 
 # only run if needed
-if 0:
+if 1:
     result = evaluate(
         ragas_dataset,
         metrics=metrics,
         llm=langchain_llm,
     )
-
-# %%
