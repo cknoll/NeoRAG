@@ -5,3 +5,6 @@ tmp_*
 
 data
 index
+config.toml
+.vscode
+_git_bundle*zip

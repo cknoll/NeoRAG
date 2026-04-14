@@ -8,3 +8,6 @@ qdrant-client
 sentence-transformers
 click
 python-dotenv
+
+datasets
+ragas
