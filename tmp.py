@@ -34,6 +34,10 @@ from ragas.metrics import (
 )
 import pandas as pd
 
+
+# TODO-Aider: Change the following dummy function such that it uses the actual RAG system from this package.
+# Also add information to the readme on how to apply our rag system to the germanrag dataset (probably this also requires changes to the code.)
+
 # 1. Deine RAG-Pipeline Funktion (Dummy-Beispiel)
 def run_my_rag_system(question):
     # Hier rufst du deinen Retriever und dein LLM auf
