@@ -1,3 +1,7 @@
+"""
+This file is meant to be run manually in interactive mode in vs code.
+"""
+
 
 
 import warnings
@@ -110,8 +114,14 @@ ragas_dataset = Dataset.from_pandas(ragas_input_df)
 
 metrics = [context_precision]
 
-result = evaluate(
-    ragas_dataset,
-    metrics=metrics,
-    llm=langchain_llm,
-)
+# %%
+
+# only run if needed
+if 0:
+    result = evaluate(
+        ragas_dataset,
+        metrics=metrics,
+        llm=langchain_llm,
+    )
+
+# %%
