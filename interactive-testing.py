@@ -38,6 +38,7 @@ dataset = datasets.load_dataset("DiscoResearch/germanrag", split="train")
 
 from ragas import evaluate
 from ragas.metrics import (
+    # context_precision,
     context_recall,
     faithfulness,
     answer_relevancy,
@@ -64,6 +65,8 @@ _germanrag_docs = [
     Document(text=ctx, metadata={"source": "germanrag"})
     for ctx in _all_contexts
 ]
+from rag.auxiliary import OneToOneMapping
+id_doc_11map = OneToOneMapping({doc.id_: doc.text for doc in _germanrag_docs})
 import os
 
 FLAG_FILE = "index/.germanrag_indexed"
@@ -82,6 +85,18 @@ else:
 # Initialise the two-stage retrieval pipeline against the GermanRAG collection
 _base_retriever, _reranker = get_query_engine(collection_name=GERMANRAG_COLLECTION)
 
+def get_relevant_contexts(question):
+    """Run the first part of RAG pipeline: retrieve, rerank
+
+    Parameters
+    ----------
+    question : str
+        The user query.
+    """
+    pass
+    # TODO-aider: implement now
+
+
 def run_my_rag_system(question, llm=None):
     """Run the actual RAG pipeline: retrieve, rerank, then generate an answer.
 
@@ -98,7 +113,7 @@ def run_my_rag_system(question, llm=None):
     # Stage 1: ANN retrieval from Qdrant
     nodes = _base_retriever.retrieve(query_bundle)
     # Stage 2: cross-encoder reranking
-    nodes = _reranker.postprocess_nodes(nodes, query_bundle)
+    nodes2 = _reranker.postprocess_nodes(nodes, query_bundle)
 
     retrieved_docs = [node.text for node in nodes]
 
@@ -135,14 +150,14 @@ for i in range(N):
     row = dataset[i]
     q = row['question']
     gt = row['answer'] # Das ist die Gold-Antwort aus GermanRAG
-    ref_contexts = row['contexts']  # Reference contexts from GermanRAG
+    ref_contexts = row['contexts']  # Reference contexts from GermanRAG (len >= 1)
 
     # Dein System fragen
-    pred_answer, pred_contexts = run_my_rag_system(q, llm=langchain_llm)
+    pred_contexts = get_relevant_contexts(q, llm=langchain_llm)
 
     _result = {
         "question": q,
-        "answer": pred_answer,
+        # "answer": pred_answer,
         "contexts": pred_contexts,
         "reference_contexts": ref_contexts,
         "ground_truth": gt
