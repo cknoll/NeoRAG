@@ -197,4 +197,21 @@ if 1:
 
 # %%
 
-# TODO-AIDER: find out those dataset rows which lead to a) low precision and b) low recall
+# Identify dataset rows leading to low precision and low recall.
+result_df = result.to_pandas()
+
+PRECISION_COL = "non_llm_context_precision_with_reference"
+RECALL_COL = "non_llm_context_recall"
+
+LOW_THRESHOLD = 0.5
+
+low_precision_rows = result_df[result_df[PRECISION_COL] < LOW_THRESHOLD]
+low_recall_rows = result_df[result_df[RECALL_COL] < LOW_THRESHOLD]
+
+print(f"\n=== Rows with low precision (< {LOW_THRESHOLD}) ===")
+print(f"Count: {len(low_precision_rows)} / {len(result_df)}")
+print("Indices:", low_precision_rows.index.tolist())
+
+print(f"\n=== Rows with low recall (< {LOW_THRESHOLD}) ===")
+print(f"Count: {len(low_recall_rows)} / {len(result_df)}")
+print("Indices:", low_recall_rows.index.tolist())
