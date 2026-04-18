@@ -8,6 +8,7 @@ qdrant-client
 sentence-transformers
 click
 python-dotenv
+rapidfuzz
 
 datasets
 ragas

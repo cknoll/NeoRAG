@@ -43,6 +43,7 @@ from ragas.metrics import (
     faithfulness,
     answer_relevancy,
     NonLLMContextPrecisionWithReference,
+    NonLLMContextRecall,
 )
 import pandas as pd
 
@@ -164,7 +165,7 @@ for i in range(N):
     ref_contexts = row['contexts']  # Reference contexts from GermanRAG (len >= 1)
 
     # Dein System fragen
-    pred_contexts = get_relevant_contexts(q, llm=langchain_llm)
+    pred_contexts = get_relevant_contexts(q)
 
     _result = {
         "question": q,
@@ -179,11 +180,10 @@ for i in range(N):
 # %%
 
 # In ein Hugging Face Dataset konvertieren
-from datasets import Dataset
 ragas_input_df = pd.DataFrame(test_results)
-ragas_dataset = Dataset.from_pandas(ragas_input_df)
+ragas_dataset = datasets.Dataset.from_pandas(ragas_input_df)
 
-metrics = [NonLLMContextPrecisionWithReference()]
+metrics = [NonLLMContextPrecisionWithReference(), NonLLMContextRecall()]
 
 # %%
 
@@ -194,10 +194,7 @@ if 1:
         metrics=metrics,
     )
 
-# %%
-
-
-print(123)
-print(4)
 
 # %%
+
+# TODO-AIDER: find out those dataset rows which lead to a) low precision and b) low recall
