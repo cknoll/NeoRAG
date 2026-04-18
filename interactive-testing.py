@@ -1,7 +1,7 @@
 """
 This file is meant to be run manually in interactive mode in vs code.
 """
-
+# %%
 
 
 import warnings
@@ -10,6 +10,10 @@ warnings.filterwarnings(
     message=r"Importing .* from 'ragas\.metrics' is deprecated",
     category=DeprecationWarning,
 )
+
+
+#! %load_ext ipydex.displaytools
+displaytools_extension = "works"  ##:
 
 # Current Ragas versions have an API mismatch:
 # The `evaluate()` function expects old-style metrics from `ragas.metrics`
@@ -25,9 +29,12 @@ warnings.filterwarnings(
 import datasets
 
 
+# %%
+
 
 dataset = datasets.load_dataset("DiscoResearch/germanrag", split="train")
 
+# %%
 
 from ragas import evaluate
 from ragas.metrics import (
@@ -59,16 +66,18 @@ _germanrag_docs = [
 ]
 import os
 
-FLAG_FILE = ".germanrag_indexed"
+FLAG_FILE = "index/.germanrag_indexed"
 
 if not os.path.exists(FLAG_FILE):
     print(f"Indexing {len(_germanrag_docs)} unique GermanRAG contexts into '{GERMANRAG_COLLECTION}' ...")
-    build_index(_germanrag_docs, collection_name=GERMANRAG_COLLECTION)
+    #build_index(_germanrag_docs, collection_name=GERMANRAG_COLLECTION)
     print("Done.")
     with open(FLAG_FILE, "w") as f:
         f.write("indexed")
 else:
     print(f"GermanRAG index already exists. Skipping indexing.")
+
+# %%
 
 # Initialise the two-stage retrieval pipeline against the GermanRAG collection
 _base_retriever, _reranker = get_query_engine(collection_name=GERMANRAG_COLLECTION)
@@ -109,6 +118,8 @@ import tomllib
 with open("config.toml", "rb") as fp:
     config = tomllib.load(fp)
 
+# %%
+
 from langchain_openai import ChatOpenAI
 
 langchain_llm = ChatOpenAI(
@@ -128,12 +139,16 @@ for i in range(N):
     # Dein System fragen
     pred_answer, pred_contexts = run_my_rag_system(q, llm=langchain_llm)
 
-    test_results.append({
+    _result = {
         "question": q,
         "answer": pred_answer,
         "contexts": pred_contexts,
         "ground_truth": gt
-    })
+    }
+
+    test_results.append(_result)
+
+# %%
 
 # In ein Hugging Face Dataset konvertieren
 from datasets import Dataset
@@ -151,3 +166,14 @@ if 1:
         metrics=metrics,
         llm=langchain_llm,
     )
+
+# %%
+
+
+print(123)
+print(4)
+
+# %%
+
+# TODO-AIDER: currently this script only evaluates "context_precision". For this actually no LLM is needed.
+# Please change the script to calculate the context precision without llm calling
