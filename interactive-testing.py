@@ -53,6 +53,8 @@ from rag.retriever import get_query_engine
 
 GERMANRAG_COLLECTION = "germanrag_chunks"
 
+_base_retriever, _reranker = None, None
+
 # --- Build a Qdrant index from the GermanRAG contexts (once) ---
 # Extract all unique context passages and index them into a separate collection
 # so the retriever searches GermanRAG content, not the default podcast data.
@@ -83,7 +85,9 @@ else:
 # %%
 
 # Initialise the two-stage retrieval pipeline against the GermanRAG collection
-_base_retriever, _reranker = get_query_engine(collection_name=GERMANRAG_COLLECTION)
+# (if this get_query_engine is executed again it causes an error with quadrant connection)
+if None in (_base_retriever, _reranker):
+    _base_retriever, _reranker = get_query_engine(collection_name=GERMANRAG_COLLECTION)
 
 def get_relevant_contexts(question):
     """Run the first part of RAG pipeline: retrieve, rerank
@@ -93,8 +97,14 @@ def get_relevant_contexts(question):
     question : str
         The user query.
     """
-    pass
-    # TODO-aider: implement now
+    query_bundle = QueryBundle(question)
+
+    # Stage 1: ANN retrieval from Qdrant
+    nodes = _base_retriever.retrieve(query_bundle)
+    # Stage 2: cross-encoder reranking
+    reranked_nodes = _reranker.postprocess_nodes(nodes, query_bundle)
+
+    return [node.text for node in reranked_nodes]
 
 
 def run_my_rag_system(question, llm=None):
@@ -108,6 +118,7 @@ def run_my_rag_system(question, llm=None):
         If provided, used to generate an answer from the retrieved context.
         Otherwise a placeholder answer is returned.
     """
+    1/0 # currently I do not want to run this.
     query_bundle = QueryBundle(question)
 
     # Stage 1: ANN retrieval from Qdrant
