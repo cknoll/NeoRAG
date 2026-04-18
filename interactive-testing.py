@@ -38,10 +38,10 @@ dataset = datasets.load_dataset("DiscoResearch/germanrag", split="train")
 
 from ragas import evaluate
 from ragas.metrics import (
-    context_precision,
     context_recall,
     faithfulness,
     answer_relevancy,
+    NonLLMContextPrecisionWithReference,
 )
 import pandas as pd
 
@@ -135,6 +135,7 @@ for i in range(N):
     row = dataset[i]
     q = row['question']
     gt = row['answer'] # Das ist die Gold-Antwort aus GermanRAG
+    ref_contexts = row['contexts']  # Reference contexts from GermanRAG
 
     # Dein System fragen
     pred_answer, pred_contexts = run_my_rag_system(q, llm=langchain_llm)
@@ -143,6 +144,7 @@ for i in range(N):
         "question": q,
         "answer": pred_answer,
         "contexts": pred_contexts,
+        "reference_contexts": ref_contexts,
         "ground_truth": gt
     }
 
@@ -155,7 +157,7 @@ from datasets import Dataset
 ragas_input_df = pd.DataFrame(test_results)
 ragas_dataset = Dataset.from_pandas(ragas_input_df)
 
-metrics = [context_precision]
+metrics = [NonLLMContextPrecisionWithReference()]
 
 # %%
 
@@ -164,7 +166,6 @@ if 1:
     result = evaluate(
         ragas_dataset,
         metrics=metrics,
-        llm=langchain_llm,
     )
 
 # %%
@@ -174,6 +175,3 @@ print(123)
 print(4)
 
 # %%
-
-# TODO-AIDER: currently this script only evaluates "context_precision". For this actually no LLM is needed.
-# Please change the script to calculate the context precision without llm calling
