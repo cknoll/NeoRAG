@@ -57,9 +57,18 @@ _germanrag_docs = [
     Document(text=ctx, metadata={"source": "germanrag"})
     for ctx in _all_contexts
 ]
-print(f"Indexing {len(_germanrag_docs)} unique GermanRAG contexts into '{GERMANRAG_COLLECTION}' ...")
-build_index(_germanrag_docs, collection_name=GERMANRAG_COLLECTION)
-print("Done.")
+import os
+
+FLAG_FILE = ".germanrag_indexed"
+
+if not os.path.exists(FLAG_FILE):
+    print(f"Indexing {len(_germanrag_docs)} unique GermanRAG contexts into '{GERMANRAG_COLLECTION}' ...")
+    build_index(_germanrag_docs, collection_name=GERMANRAG_COLLECTION)
+    print("Done.")
+    with open(FLAG_FILE, "w") as f:
+        f.write("indexed")
+else:
+    print(f"GermanRAG index already exists. Skipping indexing.")
 
 # Initialise the two-stage retrieval pipeline against the GermanRAG collection
 _base_retriever, _reranker = get_query_engine(collection_name=GERMANRAG_COLLECTION)
