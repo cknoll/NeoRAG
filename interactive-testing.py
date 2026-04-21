@@ -3,6 +3,7 @@ This file is meant to be run manually in interactive mode in vs code.
 """
 # %%
 
+from rag import config as cfg
 
 import warnings
 warnings.filterwarnings(
@@ -90,7 +91,7 @@ else:
 if None in (_base_retriever, _reranker):
     _base_retriever, _reranker = get_query_engine(collection_name=GERMANRAG_COLLECTION)
 
-def get_relevant_contexts(question):
+def get_relevant_contexts(question, use_reranker=True):
     """Run the first part of RAG pipeline: retrieve, rerank
 
     Parameters
@@ -103,9 +104,12 @@ def get_relevant_contexts(question):
     # Stage 1: ANN retrieval from Qdrant
     nodes = _base_retriever.retrieve(query_bundle)
     # Stage 2: cross-encoder reranking
-    reranked_nodes = _reranker.postprocess_nodes(nodes, query_bundle)
+    if use_reranker:
+        nodes2 = _reranker.postprocess_nodes(nodes, query_bundle)
+    else:
+        nodes2 = nodes[:cfg.TOP_K_FINAL*2]
 
-    return [node.text for node in reranked_nodes]
+    return [node.text for node in nodes2]
 
 
 def run_my_rag_system(question, llm=None):
@@ -165,7 +169,7 @@ for i in range(N):
     ref_contexts = row['contexts']  # Reference contexts from GermanRAG (len >= 1)
 
     # Dein System fragen
-    pred_contexts = get_relevant_contexts(q)
+    pred_contexts = get_relevant_contexts(q, use_reranker=False)
 
     _result = {
         "question": q,
@@ -215,3 +219,5 @@ print("Indices:", low_precision_rows.index.tolist())
 print(f"\n=== Rows with low recall (< {LOW_THRESHOLD}) ===")
 print(f"Count: {len(low_recall_rows)} / {len(result_df)}")
 print("Indices:", low_recall_rows.index.tolist())
+
+# %%
