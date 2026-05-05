@@ -1,3 +1,5 @@
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 # RAG System with High-Accuracy Retrieval
 
 This is a RAG (Retrieval-Augmented Generation) system that uses local open-source models for embeddings and re-ranking to achieve high retrieval accuracy.
