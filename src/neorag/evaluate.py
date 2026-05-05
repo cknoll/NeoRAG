@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from rag.retriever import get_retrieval_pipeline
+from .retriever import get_retrieval_pipeline
 
 def evaluate(test_path: Path):
     """Evaluate retrieval accuracy on test set."""
