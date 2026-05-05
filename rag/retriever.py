@@ -1,6 +1,8 @@
+import warnings
+
 # VectorStoreIndex: llama_index abstraction that wraps a vector store and an embedding model,
 # providing a unified interface for building retrievers and query engines.
-from llama_index.core import VectorStoreIndex
+from llama_index.core import VectorStoreIndex, QueryBundle
 from llama_index.core.query_engine import RetrieverQueryEngine
 
 # VectorIndexRetriever: performs approximate nearest neighbor (ANN) search against the
@@ -28,10 +30,7 @@ from llama_index.vector_stores.qdrant import QdrantVectorStore
 def _patch_qdrant_client(client):
     """Patch QdrantClient if .search() was removed (qdrant-client >= 1.12)."""
     if not hasattr(client, "search") and hasattr(client, "query_points"):
-        from qdrant_client.models import models
-
         def _search(collection_name, query_vector, limit, query_filter=None, **kwargs):
-            from qdrant_client.models import models as _models
             result = client.query_points(
                 collection_name=collection_name,
                 query=query_vector,
@@ -45,25 +44,52 @@ def _patch_qdrant_client(client):
     return client
 
 
-def get_query_engine(collection_name=None):
-    """Create and return a two-stage retrieval pipeline (retriever + reranker).
+class RetrievalPipeline:
+    """Thin wrapper around the two-stage retrieval pipeline.
 
-    Stage 1 – Retriever: embeds the query and fetches TOP_K_BASE candidate chunks
-    from Qdrant via fast ANN search (high recall, moderate precision).
+    Orchestrates:
+      Stage 1 – ANN retrieval (VectorIndexRetriever) to fetch TOP_K_BASE candidates.
+      Stage 2 – Cross-encoder reranking (SentenceTransformerRerank) down to TOP_K_FINAL.
 
-    Stage 2 – Reranker: a cross-encoder rescores each candidate against the query,
-    keeping only TOP_K_FINAL results (high precision).
+    Exposes a single ``retrieve()`` method that returns a list of
+    ``NodeWithScore`` objects, so callers (CLI, evaluation, future generation
+    step) do not have to know about the two-stage internals.
 
-    Parameters
-    ----------
-    collection_name : str, optional
-        Qdrant collection to query. Defaults to COLLECTION_NAME from config.
+    No LLM is involved; answer synthesis is handled elsewhere.
+    """
 
-    Returns a (base_retriever, reranker) tuple so callers can run retrieval
-    without requiring an LLM for answer synthesis.
+    def __init__(self, base_retriever, reranker):
+        self.base_retriever = base_retriever
+        self.reranker = reranker
+
+    def retrieve(self, query):
+        """Run the full pipeline for ``query`` and return reranked nodes.
+
+        Parameters
+        ----------
+        query : str | QueryBundle
+            Raw query string or a pre-built llama_index ``QueryBundle``.
+        """
+        if isinstance(query, QueryBundle):
+            query_bundle = query
+        else:
+            query_bundle = QueryBundle(query)
+
+        nodes = self.base_retriever.retrieve(query_bundle)
+        nodes = self.reranker.postprocess_nodes(nodes, query_bundle)
+        return nodes
+
+
+def get_retrieval_pipeline(collection_name=None):
+    """Build and return a :class:`RetrievalPipeline` for ``collection_name``.
+
+    See :class:`RetrievalPipeline` for pipeline semantics. This is the
+    preferred entry point for callers that want to run retrieval without
+    juggling the individual pipeline stages themselves.
     """
     if collection_name is None:
         collection_name = COLLECTION_NAME
+
     # Connect to the on-disk Qdrant instance that was populated during indexing
     client = _patch_qdrant_client(QdrantClient(path=QDRANT_PATH))
     vector_store = QdrantVectorStore(
@@ -81,23 +107,36 @@ def get_query_engine(collection_name=None):
         embed_model=embed_model
     )
 
-    # Stage 1 – Base retriever: performs fast ANN search and returns TOP_K_BASE
-    # candidate chunks. We intentionally over-fetch so the reranker has a rich
-    # pool of candidates to choose from.
+    # Stage 1 – Base retriever: fast ANN search, over-fetches TOP_K_BASE candidates
+    # so the reranker has a rich pool to choose from.
     base_retriever = VectorIndexRetriever(
         index=index,
         similarity_top_k=TOP_K_BASE
     )
 
-    # Stage 2 – Cross-encoder reranker: takes each (query, chunk) pair and produces
-    # a relevance score using a cross-encoder model. Much more accurate than
-    # embedding similarity alone, but too slow to run on the full corpus – hence
-    # the two-stage design. Keeps only the TOP_K_FINAL best results.
+    # Stage 2 – Cross-encoder reranker: rescores (query, chunk) pairs jointly.
+    # Much more accurate than embedding similarity but too slow to run on the
+    # full corpus – hence the two-stage design.
     reranker = SentenceTransformerRerank(
         model=RERANK_MODEL,
         top_n=TOP_K_FINAL
     )
 
-    # Return both components separately – the caller orchestrates the pipeline
-    # without needing an LLM for answer synthesis.
-    return base_retriever, reranker
+    return RetrievalPipeline(base_retriever, reranker)
+
+
+def get_query_engine(collection_name=None):
+    """Deprecated: use :func:`get_retrieval_pipeline` instead.
+
+    Kept as a thin backwards-compatible shim that still returns the raw
+    ``(base_retriever, reranker)`` tuple. New code should use
+    :func:`get_retrieval_pipeline`, which returns a :class:`RetrievalPipeline`
+    wrapper that orchestrates both stages via a single ``.retrieve()`` call.
+    """
+    warnings.warn(
+        "get_query_engine() is deprecated; use get_retrieval_pipeline() instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    pipeline = get_retrieval_pipeline(collection_name=collection_name)
+    return pipeline.base_retriever, pipeline.reranker

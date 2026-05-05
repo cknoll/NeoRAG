@@ -2,7 +2,7 @@ import click
 from pathlib import Path
 from rag.loader import load_chunks
 from rag.indexer import build_index
-from rag.retriever import get_query_engine
+from rag.retriever import get_retrieval_pipeline
 
 @click.group()
 def cli():
@@ -32,21 +32,10 @@ def query(query):
     """
     click.echo(f"Query: {query}")
 
-    # Obtain the two-stage pipeline components (no LLM involved)
-    base_retriever, reranker = get_query_engine()
-
-    # QueryBundle wraps the raw query string into a llama_index object that
-    # the retriever and postprocessors expect (carries query text + embedding).
-    from llama_index.core import QueryBundle
-    query_bundle = QueryBundle(query)
-
-    # Stage 1: embed the query and fetch TOP_K_BASE nearest chunks from Qdrant.
-    # Each returned node carries a similarity score and the original chunk text.
-    nodes = base_retriever.retrieve(query_bundle)
-
-    # Stage 2: the cross-encoder reranker rescores every candidate by jointly
-    # encoding (query, chunk) and keeps only the TOP_K_FINAL best matches.
-    nodes = reranker.postprocess_nodes(nodes, query_bundle)
+    # Obtain the two-stage pipeline wrapper (no LLM involved). The wrapper
+    # orchestrates ANN retrieval + cross-encoder reranking internally.
+    pipeline = get_retrieval_pipeline()
+    nodes = pipeline.retrieve(query)
 
     click.echo("\n--- Results ---")
     for i, node in enumerate(nodes, 1):
