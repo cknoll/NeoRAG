@@ -3,6 +3,11 @@ from pathlib import Path
 from .loader import load_chunks
 from .indexer import build_index
 from .retriever import get_retrieval_pipeline
+from .build_corpus import (
+    build_corpus,
+    DEFAULT_CHUNKS_PER_DOC,
+    DEFAULT_CORPUS_DIR,
+)
 
 @click.group()
 def cli():
@@ -20,6 +25,52 @@ def index(data_dir):
     click.echo("Building index...")
     build_index(documents)
     click.echo("Index built successfully!")
+
+@cli.command("build-corpus")
+@click.option(
+    "--corpus-dir",
+    default=str(DEFAULT_CORPUS_DIR),
+    show_default=True,
+    help="Target directory for synthetic parent documents (wiped on each run).",
+)
+@click.option(
+    "--chunks-per-doc",
+    default=DEFAULT_CHUNKS_PER_DOC,
+    show_default=True,
+    type=int,
+    help="Number of consecutive germanrag chunks grouped into one parent doc.",
+)
+@click.option(
+    "--limit-chunks",
+    default=None,
+    type=int,
+    help="Stop after this many unique chunks (default: no limit).",
+)
+@click.option(
+    "--limit-docs",
+    default=None,
+    type=int,
+    help="Stop after this many parent documents (default: no limit).",
+)
+def build_corpus_cmd(corpus_dir, chunks_per_doc, limit_chunks, limit_docs):
+    """Build the synthetic parent-document corpus over DiscoResearch/germanrag.
+
+    See ``neorag.build_corpus`` for the provenance rationale. Produces
+    ``doc_{k:05d}.md`` files and a ``provenance.jsonl`` sidecar under
+    ``corpus-dir``. The target directory is wiped on every invocation.
+    """
+    click.echo(f"Building synthetic corpus in {corpus_dir} ...")
+    summary = build_corpus(
+        corpus_dir=Path(corpus_dir),
+        chunks_per_doc=chunks_per_doc,
+        limit_chunks=limit_chunks,
+        limit_docs=limit_docs,
+    )
+    click.echo(
+        f"Wrote {summary['n_docs']} parent documents "
+        f"({summary['n_chunks']} chunks) to {summary['corpus_dir']}"
+    )
+
 
 @cli.command()
 @click.argument('query')

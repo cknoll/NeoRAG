@@ -61,6 +61,49 @@ Key settings in `rag/config.py`:
 - `TOP_K_BASE`: 20 (retrieve more for re-ranking)
 - `TOP_K_FINAL`: 3 (final results after re-ranking)
 
+## Synthetic Parent-Document Corpus (Provenance Substrate)
+
+NeoRAG ships a helper that materialises a *synthetic* parent-document
+corpus from [`DiscoResearch/germanrag`](https://huggingface.co/datasets/DiscoResearch/germanrag).
+The germanrag dataset is distributed pre-chunked, with no source
+documents, so there is nothing meaningful to record byte offsets
+*into*. The `build-corpus` command groups N consecutive germanrag
+chunks (default: 50) into synthetic parent documents
+`doc_{k:05d}.md` under `data/sample_corpus/`, and writes a sidecar
+`provenance.jsonl` carrying, per chunk:
+
+- `doc_id`, `chunk_idx_in_doc`
+- `byte_start`, `byte_end` (offsets into the UTF-8 bytes of the parent `.md`)
+- `sha256` of the chunk bytes
+- `germanrag_row_idx` (original dataset row for traceability)
+
+### Why it exists
+
+This corpus is the **provenance substrate** for the neurosymbolic
+validator (FF2): it gives the groundedness checker and the SHACL
+shape on cited `chunk_idx` something real to verify against.
+It is **not** a claim about real document provenance — the parent
+documents are synthetic groupings.
+
+### Build it
+
+```bash
+neorag build-corpus
+# or, to cap the output for fast iteration:
+neorag build-corpus --limit-docs 10
+```
+
+Then index the corpus as usual:
+
+```bash
+neorag index --data-dir data/sample_corpus
+```
+
+The loader automatically detects `data/sample_corpus/provenance.jsonl`
+and attaches the provenance keys (`doc_id`, `chunk_idx_in_doc`,
+`byte_start`, `byte_end`, `sha256`) to each chunk's metadata, while
+preserving the legacy `source` / `chunk_idx` keys.
+
 ## Evaluate with GermanRAG Dataset
 
 The `tmp.py` script evaluates the RAG system against the [DiscoResearch/germanrag](https://huggingface.co/datasets/DiscoResearch/germanrag) dataset using [Ragas](https://docs.ragas.io/) metrics.
