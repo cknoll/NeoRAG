@@ -28,6 +28,7 @@ from .config import QDRANT_PATH, COLLECTION_NAME, EMBEDDING_MODEL, TOP_K_BASE, T
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 
 def _patch_qdrant_client(client):
+    # TODO-AIDER: add a comment why this is needed (also add this comment to the respective test)
     """Patch QdrantClient if .search() was removed (qdrant-client >= 1.12)."""
     if not hasattr(client, "search") and hasattr(client, "query_points"):
         def _search(collection_name, query_vector, limit, query_filter=None, **kwargs):
