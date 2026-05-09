@@ -32,7 +32,14 @@ if [[ "$MODE" == "shell" ]]; then
         exit 1
     fi
     echo ">>> Entering $CONTAINER"
-    docker exec -it -w /github/workspace "$CONTAINER" bash
+    # Try the workspace first, fall back to / if it does not exist yet.
+    if docker exec "$CONTAINER" test -d /github/workspace; then
+        docker exec -it -w /github/workspace "$CONTAINER" bash
+    else
+        echo "Note: /github/workspace does not exist in the container."
+        echo "      Dropping you into / instead."
+        docker exec -it "$CONTAINER" bash
+    fi
 else
     act -j "$JOB"
 fi
