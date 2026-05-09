@@ -1,3 +1,8 @@
 gemeni_api_key = "bv4TmVdTr_--example-secret--EghFcYpNwHuWyhH2Q"
 openrouter_api_key = "9Fy3VyuJlV--example-secret--PdxDIJDf4n3JpjgsM"
 
+LLM_PROVIDER = "openrouter"  # one of: "openai", "openrouter", "anthropic", "ollama", "stub"
+LLM_MODEL = "google/gemini-2.0-flash-001"
+LLM_BASE_URL = "https://openrouter.ai/api/v1"
+LLM_MAX_TOKENS = 1024
+LLM_TIMEOUT_S = 60.0

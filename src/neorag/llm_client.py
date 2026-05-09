@@ -140,7 +140,7 @@ def load_api_key_from_toml(
     if field_name is None:
         return None
 
-    path = Path(toml_path) if toml_path is not None else cfg.LLM_CONFIG_TOML_PATH
+    path = Path(toml_path) if toml_path is not None else cfg.CONFIG_TOML_PATH
     if not path.is_file():
         return None
 
@@ -191,7 +191,7 @@ class LLMClient:
             raise LLMClientError(
                 f"Provider '{provider}' requires an API key. "
                 f"Set '{cfg.LLM_API_KEY_TOML_FIELD.get(provider, '<api_key>')}' "
-                f"in {cfg.LLM_CONFIG_TOML_PATH}."
+                f"in {cfg.CONFIG_TOML_PATH}."
             )
 
         # Reusable HTTP client; closed in close()/__exit__.

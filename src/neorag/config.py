@@ -16,7 +16,7 @@ LLM_TIMEOUT_S = 60.0
 
 # API keys are read from a TOML file (shippable example: config-example.toml).
 # Override via env var NEORAG_CONFIG_TOML if needed.
-LLM_CONFIG_TOML_PATH = Path(os.environ.get("NEORAG_CONFIG_TOML", "config.toml"))
+CONFIG_TOML_PATH = Path(os.environ.get("NEORAG_CONFIG_TOML", "config.toml"))
 # Mapping from provider name to the TOML field that holds the API key.
 LLM_API_KEY_TOML_FIELD = {
     "openrouter": "openrouter_api_key",
