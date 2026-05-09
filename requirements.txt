@@ -1,4 +1,5 @@
 llama-index==0.10.0
+pyarrow==23.0.1
 llama-index-vector-stores-qdrant
 llama-index-embeddings-huggingface
 llama-index
