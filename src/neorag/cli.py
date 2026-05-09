@@ -45,24 +45,47 @@ def _cmd_query(args):
     Runs a two-stage retrieval pipeline:
     1. ANN search in Qdrant to get initial candidate chunks.
     2. Cross-encoder reranking to select the most relevant results.
+
+    By default also runs an LLM generation step over the retrieved
+    context. Pass ``--no-generate`` to skip generation and only print
+    the retrieved chunks (useful for retrieval debugging).
     """
     from .config import validate_dirs
+    from .generate import _chunk_id
     from .retriever import get_retrieval_pipeline
 
     validate_dirs()
     print(f"Query: {args.query}")
 
-    # Obtain the two-stage pipeline wrapper (no LLM involved). The wrapper
-    # orchestrates ANN retrieval + cross-encoder reranking internally.
+    # Obtain the two-stage pipeline wrapper (no LLM involved here yet).
+    # The wrapper orchestrates ANN retrieval + cross-encoder reranking.
     pipeline = get_retrieval_pipeline()
     nodes = pipeline.retrieve(args.query)
 
-    print("\n--- Results ---")
+    print("\n--- Retrieved chunks ---")
     for i, node in enumerate(nodes, 1):
         # node.score: relevance score assigned by the reranker (higher = better)
         print(f"\n{i}. Score: {node.score:.3f}")
+        print(f"   ChunkId: {_chunk_id(node)}")
         print(f"   Source: {node.metadata.get('source', 'unknown')}")
         print(f"   Text: {node.text[:200]}...")
+
+    if args.no_generate:
+        return
+
+    # Generation step: ask the configured LLM backend for an answer
+    # grounded in the retrieved chunks.
+    from .generate import generate_answer
+    from .llm_client import LLMClient
+
+    llm = LLMClient.from_config()
+    try:
+        answer = generate_answer(args.query, nodes, llm)
+    finally:
+        llm.close()
+
+    print("\n--- Answer ---")
+    print(answer)
 
 
 def _build_parser():
@@ -143,6 +166,11 @@ def _build_parser():
         ),
     )
     p_query.add_argument("query", help="Query string")
+    p_query.add_argument(
+        "--no-generate",
+        action="store_true",
+        help="Skip the LLM generation step; only print retrieved chunks.",
+    )
     p_query.set_defaults(func=_cmd_query)
 
     return parser
