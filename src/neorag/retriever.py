@@ -28,8 +28,18 @@ from .config import QDRANT_PATH, COLLECTION_NAME, EMBEDDING_MODEL, TOP_K_BASE, T
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 
 def _patch_qdrant_client(client):
-    # TODO-AIDER: add a comment why this is needed (also add this comment to the respective test)
-    """Patch QdrantClient if .search() was removed (qdrant-client >= 1.12)."""
+    """Patch QdrantClient if .search() was removed (qdrant-client >= 1.12).
+
+    Background: starting with qdrant-client >= 1.12, the legacy ``.search()``
+    method was removed in favor of the new ``.query_points()`` API (which
+    returns a response object exposing ``.points`` instead of a bare list).
+    However, the version of llama_index's ``QdrantVectorStore`` pinned in
+    this project still calls ``client.search(...)`` internally. To stay
+    compatible with both old and new qdrant-client releases without forcing
+    a downgrade, we monkey-patch a thin ``search()`` shim onto the client
+    that delegates to ``query_points()`` and unwraps the ``.points``
+    attribute, mimicking the old return type.
+    """
     if not hasattr(client, "search") and hasattr(client, "query_points"):
         def _search(collection_name, query_vector, limit, query_filter=None, **kwargs):
             result = client.query_points(

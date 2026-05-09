@@ -219,7 +219,10 @@ class TestCore(unittest.TestCase):
         self.assertEqual(client.search("any", [], 5), "original_search")
 
     def test_051_patch_adds_search_when_missing(self):
-        """_patch_qdrant_client adds a search() method delegating to query_points()."""
+        """_patch_qdrant_client adds a search() method delegating to query_points().
+
+        Background: see docstring for _patch_qdrant_client for why we need this.
+        """
         from neorag.retriever import _patch_qdrant_client
 
         class FakeClient:
