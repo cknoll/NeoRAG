@@ -106,8 +106,6 @@ preserving the legacy `source` / `chunk_idx` keys.
 
 ## Evaluate with GermanRAG Dataset
 
-The `tmp.py` script evaluates the RAG system against the [DiscoResearch/germanrag](https://huggingface.co/datasets/DiscoResearch/germanrag) dataset using [Ragas](https://docs.ragas.io/) metrics.
-
 ### Prerequisites
 
 1. Create a `config.toml` in the project root with your OpenRouter API key:
@@ -127,18 +125,7 @@ Run `interactive-testing.py` interactively (e.g. in VS Code) or as a script:
 python interactive-testing.py
 ```
 
-The script will:
-1. Load the GermanRAG dataset from Hugging Face.
-2. Extract all unique context passages and index them into a **separate** Qdrant collection (`germanrag_chunks`), leaving your default index untouched.
-3. For each test question, run the full two-stage retrieval pipeline (ANN search → cross-encoder reranking) against the GermanRAG collection.
-4. Use the configured LLM (via OpenRouter) to generate an answer from the retrieved context.
-5. Evaluate the results with Ragas metrics (e.g. `context_precision`).
-
-## Accuracy Improvement Tips
-
-1. **Verify chunk quality**: Chunks should be 300-500 tokens, coherent
-2. **Add metadata**: Include document titles, section headers if available
-3. **Tune TOP_K_BASE**: Increase to 30-50 if recall is low
-4. **Try bge-large**: If you have GPU, use `BAAI/bge-large-en-v1.5` for better embeddings
-5. **Hybrid search**: Enable Qdrant's hybrid mode for keyword + semantic
-6. **Query expansion**: Add HyDE postprocessor for complex queries
+The script does:
+- Load the GermanRAG dataset from Hugging Face.
+- Extract all unique context passages and index them into a **separate** Qdrant collection (`germanrag_chunks`), leaving default index untouched.
+- Evaluate the retrieval results with Ragas metrics.

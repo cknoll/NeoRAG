@@ -3,7 +3,7 @@ This file is meant to be run manually in interactive mode in vs code.
 """
 # %%
 
-from rag import config as cfg
+from neorag import config as cfg
 
 import warnings
 warnings.filterwarnings(
