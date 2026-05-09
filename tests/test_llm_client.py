@@ -25,8 +25,9 @@ from neorag.llm_client import (
     LLMResponse,
     StubBackend,
     ToolCall,
-    load_api_key_from_toml,
 )
+
+from neorag.config import load_api_key_from_toml
 
 
 # ---------------------------------------------------------------------------
