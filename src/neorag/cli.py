@@ -10,14 +10,21 @@ from .build_corpus import (
 )
 
 @click.group()
-def cli():
+@click.option('--bootstrap', is_flag=True, help='Create required directories (index, etc.) and exit.')
+def cli(bootstrap):
     """Simple RAG CLI with high-accuracy retrieval."""
-    pass
+    if bootstrap:
+        from .config import ensure_dirs
+        ensure_dirs()
+        click.echo("Bootstrap complete: created required directories.")
+        return
 
 @cli.command()
 @click.option('--data-dir', default='data', help='Directory containing markdown chunks')
 def index(data_dir):
     """Build vector index from chunks."""
+    from .config import validate_dirs
+    validate_dirs()
     click.echo(f"Loading chunks from {data_dir}...")
     documents = load_chunks(Path(data_dir))
     click.echo(f"Loaded {len(documents)} documents")
@@ -81,6 +88,8 @@ def query(query):
     1. ANN search in Qdrant to get initial candidate chunks.
     2. Cross-encoder reranking to select the most relevant results.
     """
+    from .config import validate_dirs
+    validate_dirs()
     click.echo(f"Query: {query}")
 
     # Obtain the two-stage pipeline wrapper (no LLM involved). The wrapper
