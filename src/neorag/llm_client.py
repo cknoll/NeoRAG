@@ -205,6 +205,23 @@ class LLMClient:
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.close()
 
+    # -- URL helpers ----------------------------------------------------------
+
+    def _api_root(self) -> str:
+        """Return ``base_url`` with a trailing ``/v1`` segment stripped.
+
+        Provider endpoint paths in this client are constructed as
+        ``f"{root}/v1/..."``. Users commonly configure ``base_url`` either
+        as the bare host (e.g. ``https://openrouter.ai/api``) or with the
+        ``/v1`` suffix already included (e.g. ``https://openrouter.ai/api/v1``,
+        which is the form shown on most provider docs). Without this
+        normalisation the latter produces ``/v1/v1/...`` and yields a 404.
+        """
+        root = self.base_url.rstrip("/")
+        if root.endswith("/v1"):
+            root = root[: -len("/v1")]
+        return root
+
     # -- logging shim ---------------------------------------------------------
 
     def _log(self, msg: str) -> None:
@@ -255,7 +272,7 @@ class LLMClient:
 
         try:
             response = self._http.post(
-                f"{self.base_url}/v1/messages", headers=headers, json=payload
+                f"{self._api_root()}/v1/messages", headers=headers, json=payload
             )
         except httpx.HTTPError as e:
             raise LLMClientError(f"Network error calling Anthropic API: {e}") from e
@@ -287,7 +304,7 @@ class LLMClient:
 
         try:
             response = self._http.post(
-                f"{self.base_url}/v1/chat/completions", headers=headers, json=payload
+                f"{self._api_root()}/v1/chat/completions", headers=headers, json=payload
             )
         except httpx.HTTPError as e:
             raise LLMClientError(f"Network error calling OpenAI API: {e}") from e

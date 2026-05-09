@@ -310,7 +310,9 @@ class TestHttpLayer(unittest.TestCase):
 
         resp = client.chat([{"role": "user", "content": "ping"}])
 
-        self.assertEqual(captured_request["url"], "https://openrouter.ai/api/v1/v1/chat/completions")
+        # base_url ends with /v1; the client must strip it before appending
+        # /v1/chat/completions, otherwise we'd hit a non-existent /v1/v1/... path.
+        self.assertEqual(captured_request["url"], "https://openrouter.ai/api/v1/chat/completions")
         self.assertEqual(captured_request["headers"]["Content-Type"], "application/json")
         self.assertEqual(captured_request["headers"]["Authorization"], "Bearer sk-or-test")
         self.assertEqual(resp.content, "pong")
@@ -382,3 +384,31 @@ class TestHttpLayer(unittest.TestCase):
         with self.assertRaises(LLMClientError) as ctx:
             client.chat([{"role": "user", "content": "ping"}])
         self.assertIn("Connection refused", str(ctx.exception))
+
+
+# ---------------------------------------------------------------------------
+# 7. Live-API integration test (skipped unless --allow-api-calls is given)
+# ---------------------------------------------------------------------------
+
+
+class TestLiveApiRoundTrip(APIAwareTestCase):
+    """Reproduces the smoke-test command end-to-end against the real provider.
+
+    Skipped by default (and on CI). Run locally with:
+        pytest tests/test_llm_client.py -k TestLiveApiRoundTrip --allow-api-calls
+    """
+
+    def test_from_config_chat_ping_returns_nonempty_content(self):
+        self.skip_if_no_api_calls()
+
+        client = LLMClient.from_config()
+        try:
+            resp = client.chat([{"role": "user", "content": "ping"}])
+        finally:
+            client.close()
+
+        self.assertIsInstance(resp, LLMResponse)
+        # The model should produce *some* textual content for a "ping" prompt.
+        self.assertIsInstance(resp.content, str)
+        self.assertGreater(len(resp.content.strip()), 0,
+                           f"Empty content from live API; full response: {resp}")
