@@ -16,6 +16,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
+import pytest
+
 # The module under test
 from neorag import llm_client
 from neorag.llm_client import (
@@ -30,6 +32,14 @@ from neorag.llm_client import (
 from neorag.config import load_api_key_from_toml
 
 
+def skip_if_no_api_calls(request):
+    allow_api_calls = request.config.getoption("--allow-api-calls")
+    if not allow_api_calls:
+        pytest.skip("API calls skipped by default")
+
+    return allow_api_calls
+
+
 # ---------------------------------------------------------------------------
 # 1. Config / load_api_key_from_toml
 # ---------------------------------------------------------------------------
@@ -37,7 +47,12 @@ from neorag.config import load_api_key_from_toml
 class TestLoadApiKeyFromToml(unittest.TestCase):
     """Does load_api_key_from_toml return the right value for each provider?"""
 
-    def test_openrouter_key_returned_when_present(self):
+    def test_010_openrouter_key_returned_when_present(self):
+
+        # TODO-AIDER: make this skip mechanism work here. (Where does the request object come from?)
+        skip_if_no_api_calls(request)
+
+
         """When the TOML contains openrouter_api_key, that value is returned."""
         with tempfile.NamedTemporaryFile(suffix=".toml", delete=False, mode="w") as f:
             f.write('openrouter_api_key = "sk-or-test-123"\n')
