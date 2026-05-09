@@ -79,10 +79,14 @@ class TestLoadApiKeyFromToml(APIAwareTestCase):
         finally:
             toml_path.unlink()
 
-    def test_missing_toml_file_returns_none(self):
-        """When the TOML path does not exist, None is returned (no exception)."""
-        key = load_api_key_from_toml("openrouter", toml_path=Path("/nonexistent/path.toml"))
-        self.assertIsNone(key)
+    def test_missing_toml_file_warns_and_uses_fallback(self):
+        """When the TOML path does not exist, a warning is printed and the fallback key is returned."""
+        import warnings
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            key = load_api_key_from_toml("openrouter", toml_path=Path("/nonexistent/path.toml"))
+            self.assertEqual(key, "9Fy3VyuJlV--example-secret--PdxDIJDf4n3JpjgsM")
+            self.assertTrue(any("config.toml not found" in str(warning.message) for warning in w))
 
     def test_malformed_toml_raises_llmclienterror(self):
         """A malformed TOML file raises LLMClientError, not a cryptic parse error."""
