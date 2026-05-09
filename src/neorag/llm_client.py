@@ -28,9 +28,7 @@ from __future__ import annotations
 
 import json
 import sys
-import tomllib
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 import httpx
@@ -122,38 +120,6 @@ class StubBackend:
 
 
 # ---------------------------------------------------------------------------
-# Config helpers
-# ---------------------------------------------------------------------------
-
-
-def load_api_key_from_toml(
-    provider_name: str,
-    toml_path: Optional[Path] = None,
-) -> Optional[str]:
-    """Return the API key for ``provider_name`` read from a TOML config file.
-
-    Returns ``None`` if no key is configured (e.g. for ``ollama`` or
-    ``stub`` providers, or if the TOML file does not exist). Raises
-    :class:`LLMClientError` if the TOML file exists but is malformed.
-    """
-    field_name = cfg.LLM_API_KEY_TOML_FIELD.get(provider_name)
-    if field_name is None:
-        return None
-
-    path = Path(toml_path) if toml_path is not None else cfg.CONFIG_TOML_PATH
-    if not path.is_file():
-        return None
-
-    try:
-        with path.open("rb") as fp:
-            data = tomllib.load(fp)
-    except (OSError, tomllib.TOMLDecodeError) as e:
-        raise LLMClientError(f"Failed to read API key from {path}: {e}") from e
-
-    return data.get(field_name)
-
-
-# ---------------------------------------------------------------------------
 # Synchronous multi-provider LLM client
 # ---------------------------------------------------------------------------
 
@@ -214,7 +180,7 @@ class LLMClient:
         timeout_s = overrides.pop("timeout_s", cfg.LLM_TIMEOUT_S)
         api_key = overrides.pop("api_key", None)
         if api_key is None:
-            api_key = load_api_key_from_toml(provider)
+            api_key = cfg.load_api_key_from_toml(provider)
 
         if overrides:
             raise TypeError(f"Unexpected kwargs for LLMClient.from_config: {sorted(overrides)}")

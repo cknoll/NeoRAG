@@ -1,5 +1,7 @@
 import os
+import tomllib
 from pathlib import Path
+from typing import Optional
 
 # Paths
 DATA_DIR = Path("data")
@@ -23,6 +25,35 @@ LLM_API_KEY_TOML_FIELD = {
     "openai": "openai_api_key",
     "anthropic": "anthropic_api_key",
 }
+
+
+def load_api_key_from_toml(
+    provider_name: str,
+    toml_path: Optional[Path] = None,
+) -> Optional[str]:
+    """Return the API key for ``provider_name`` read from a TOML config file.
+
+    Returns ``None`` if no key is configured (e.g. for ``ollama`` or
+    ``stub`` providers, or if the TOML file does not exist). Raises
+    :class:`LLMClientError` if the TOML file exists but is malformed.
+    """
+    field_name = LLM_API_KEY_TOML_FIELD.get(provider_name)
+    if field_name is None:
+        return None
+
+    path = Path(toml_path) if toml_path is not None else CONFIG_TOML_PATH
+    if not path.is_file():
+        return None
+
+    try:
+        with path.open("rb") as fp:
+            data = tomllib.load(fp)
+    except (OSError, tomllib.TOMLDecodeError) as e:
+        from .llm_client import LLMClientError
+
+        raise LLMClientError(f"Failed to read API key from {path}: {e}") from e
+
+    return data.get(field_name)
 
 
 
