@@ -132,9 +132,15 @@ class TestCore(unittest.TestCase):
             docs = load_chunks(Path(tmpdir))
 
         self.assertEqual(len(docs), 2)
-        texts = {d.text for d in docs}
-        self.assertIn("# Chunk 1", next(iter(texts)))
-        self.assertIn("# Chunk 2", next(iter(texts)))
+        all_texts = [d.text for d in docs]
+        self.assertTrue(
+            any("# Chunk 1" in t for t in all_texts),
+            f"'# Chunk 1' not found in any document text: {all_texts}",
+        )
+        self.assertTrue(
+            any("# Chunk 2" in t for t in all_texts),
+            f"'# Chunk 2' not found in any document text: {all_texts}",
+        )
 
     def test_031_load_chunks_metadata_no_provenance(self):
         """load_chunks attaches source and chunk_idx metadata (legacy mode)."""
@@ -151,21 +157,37 @@ class TestCore(unittest.TestCase):
         self.assertEqual(doc.metadata["chunk_idx"], 42)
 
     def test_032_load_chunks_with_provenance(self):
-        """load_chunks emits one Document per chunk when provenance.jsonl exists."""
+        """load_chunks emits one Document per chunk when provenance.jsonl exists.
+
+        All content is pure ASCII so byte offsets are exact:
+          - "AAA"                     → bytes 0-2   (chunk 0)
+          - separator                → bytes 3-25  (23 bytes)
+          - "BBB"                     → bytes 26-29 (chunk 1)
+        """
         from neorag.loader import load_chunks
 
+        sep = "\n\n---<!-- chunk 1 -->\n\n"
+        parent_doc = f"AAA{sep}BBB"  # pure ASCII → 1 byte per char
+
+        # Pre-computed offsets for "AAA" and "BBB" in the above string
+        # total length = 29; sep = 23 bytes; "AAA" at 0-2, sep at 3-25, "BBB" at 26-29
+        byte_start_0, byte_end_0 = 0, 3   # "AAA"
+        byte_start_1, byte_end_1 = 26, 29  # "BBB"
+
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Write a parent doc with two chunks separated by the chunk separator
-            parent_doc = (
-                "First chunk text."
-                "\n\n---<!-- chunk 1 -->\n\n"
-                "Second chunk text."
-            )
             (Path(tmpdir) / "doc_00000.md").write_bytes(parent_doc.encode("utf-8"))
 
             provenance_rows = [
-                {"doc_id": "doc_00000", "chunk_idx_in_doc": 0, "byte_start": 0, "byte_end": 17, "sha256": "a" * 64},
-                {"doc_id": "doc_00000", "chunk_idx_in_doc": 1, "byte_start": 37, "byte_end": 54, "sha256": "b" * 64},
+                {
+                    "doc_id": "doc_00000", "chunk_idx_in_doc": 0,
+                    "byte_start": byte_start_0, "byte_end": byte_end_0,
+                    "sha256": "a" * 64,
+                },
+                {
+                    "doc_id": "doc_00000", "chunk_idx_in_doc": 1,
+                    "byte_start": byte_start_1, "byte_end": byte_end_1,
+                    "sha256": "b" * 64,
+                },
             ]
             prov_path = Path(tmpdir) / "provenance.jsonl"
             prov_path.write_text("\n".join(json.dumps(r) for r in provenance_rows))
@@ -173,13 +195,15 @@ class TestCore(unittest.TestCase):
             docs = load_chunks(Path(tmpdir))
 
         self.assertEqual(len(docs), 2)
-        self.assertEqual(docs[0].text, "First chunk text.")
-        self.assertEqual(docs[1].text, "Second chunk text.")
+        self.assertEqual(docs[0].text, "AAA")
+        self.assertEqual(docs[1].text, "BBB")
         # Verify provenance metadata is attached
         for doc in docs:
             self.assertIn("doc_id", doc.metadata)
             self.assertIn("sha256", doc.metadata)
-            self.assertIn("germanrag_row_idx", doc.metadata)  # present in our rows
+            self.assertIn("byte_start", doc.metadata)
+            self.assertIn("byte_end", doc.metadata)
+            self.assertIn("chunk_idx_in_doc", doc.metadata)
 
     # ------------------------------------------------------------------
     # 4. validate_dirs
