@@ -10,4 +10,5 @@ python-dotenv
 
 datasets
 ragas
+httpx
 pytest
