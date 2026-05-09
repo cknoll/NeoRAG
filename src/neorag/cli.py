@@ -1,18 +1,17 @@
 import argparse
 from pathlib import Path
-from .loader import load_chunks
-from .indexer import build_index
-from .retriever import get_retrieval_pipeline
-from .build_corpus import (
-    build_corpus,
-    DEFAULT_CHUNKS_PER_DOC,
-    DEFAULT_CORPUS_DIR,
-)
+
+# NOTE: Heavy imports (loader, indexer, retriever, build_corpus) are intentionally
+# deferred to inside the command handlers so that `--help` and argument parsing
+# stay fast. Top-level imports here must remain lightweight.
 
 
 def _cmd_index(args):
     """Build vector index from chunks."""
     from .config import validate_dirs
+    from .loader import load_chunks
+    from .indexer import build_index
+
     validate_dirs()
     print(f"Loading chunks from {args.data_dir}...")
     documents = load_chunks(Path(args.data_dir))
@@ -25,6 +24,8 @@ def _cmd_index(args):
 
 def _cmd_build_corpus(args):
     """Build the synthetic parent-document corpus over DiscoResearch/germanrag."""
+    from .build_corpus import build_corpus
+
     print(f"Building synthetic corpus in {args.corpus_dir} ...")
     summary = build_corpus(
         corpus_dir=Path(args.corpus_dir),
@@ -46,6 +47,8 @@ def _cmd_query(args):
     2. Cross-encoder reranking to select the most relevant results.
     """
     from .config import validate_dirs
+    from .retriever import get_retrieval_pipeline
+
     validate_dirs()
     print(f"Query: {args.query}")
 
@@ -63,6 +66,10 @@ def _cmd_query(args):
 
 
 def _build_parser():
+    # Import defaults lazily to keep `--help` fast in case build_corpus pulls
+    # in heavier dependencies in the future.
+    from .build_corpus import DEFAULT_CHUNKS_PER_DOC, DEFAULT_CORPUS_DIR
+
     parser = argparse.ArgumentParser(
         prog="neorag",
         description="Simple RAG CLI with high-accuracy retrieval.",
@@ -147,6 +154,7 @@ def main():
 
     if args.bootstrap:
         from .config import ensure_dirs
+
         ensure_dirs()
         print("Bootstrap complete: created required directories.")
         return
