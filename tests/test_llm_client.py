@@ -47,11 +47,16 @@ def skip_if_no_api_calls(request):
 class TestLoadApiKeyFromToml(unittest.TestCase):
     """Does load_api_key_from_toml return the right value for each provider?"""
 
+    @pytest.fixture(autouse=True)
+    def _inject_request(self, request):
+        # Capture the pytest `request` object so unittest-style test methods
+        # can access it via `self.request` (pytest fixtures cannot be passed
+        # as method parameters on unittest.TestCase subclasses).
+        self.request = request
+
     def test_010_openrouter_key_returned_when_present(self):
 
-        # TODO-AIDER: make this skip mechanism work here. (Where does the request object come from?)
-        skip_if_no_api_calls(request)
-
+        skip_if_no_api_calls(self.request)
 
         """When the TOML contains openrouter_api_key, that value is returned."""
         with tempfile.NamedTemporaryFile(suffix=".toml", delete=False, mode="w") as f:
