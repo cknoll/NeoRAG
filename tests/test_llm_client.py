@@ -31,22 +31,7 @@ from neorag.llm_client import (
 
 from neorag.config import load_api_key_from_toml
 
-
-def skip_if_no_api_calls(request):
-    allow_api_calls = request.config.getoption("--allow-api-calls")
-    if not allow_api_calls:
-        pytest.skip("API calls skipped by default")
-
-    return allow_api_calls
-
-
-# ---------------------------------------------------------------------------
-# 1. Config / load_api_key_from_toml
-# ---------------------------------------------------------------------------
-
-class TestLoadApiKeyFromToml(unittest.TestCase):
-    """Does load_api_key_from_toml return the right value for each provider?"""
-
+class APIAwareTestCase(unittest.TestCase):
     @pytest.fixture(autouse=True)
     def _inject_request(self, request):
         # Capture the pytest `request` object so unittest-style test methods
@@ -54,9 +39,24 @@ class TestLoadApiKeyFromToml(unittest.TestCase):
         # as method parameters on unittest.TestCase subclasses).
         self.request = request
 
-    def test_010_openrouter_key_returned_when_present(self):
+    def skip_if_no_api_calls(self):
+        """
+        put `self.skip_if_no_api_calls()` at the top of a test method which needs it
 
-        skip_if_no_api_calls(self.request)
+        """
+        allow_api_calls = self.request.config.getoption("--allow-api-calls")
+        if not allow_api_calls:
+            pytest.skip("API calls skipped by default")
+
+        return allow_api_calls
+# ---------------------------------------------------------------------------
+# 1. Config / load_api_key_from_toml
+# ---------------------------------------------------------------------------
+
+class TestLoadApiKeyFromToml(APIAwareTestCase):
+    """Does load_api_key_from_toml return the right value for each provider?"""
+
+    def test_010_openrouter_key_returned_when_present(self):
 
         """When the TOML contains openrouter_api_key, that value is returned."""
         with tempfile.NamedTemporaryFile(suffix=".toml", delete=False, mode="w") as f:
