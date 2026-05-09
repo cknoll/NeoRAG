@@ -50,8 +50,8 @@ import pandas as pd
 
 
 from llama_index.core import Document, QueryBundle
-from rag.indexer import build_index
-from rag.retriever import get_query_engine
+from neorag.indexer import build_index
+from neorag.retriever import get_query_engine
 
 GERMANRAG_COLLECTION = "germanrag_chunks"
 
@@ -69,7 +69,7 @@ _germanrag_docs = [
     Document(text=ctx, metadata={"source": "germanrag"})
     for ctx in _all_contexts
 ]
-from rag.auxiliary import OneToOneMapping
+from neorag.auxiliary import OneToOneMapping
 id_doc_11map = OneToOneMapping({doc.id_: doc.text for doc in _germanrag_docs})
 import os
 

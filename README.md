@@ -7,17 +7,18 @@ This is a RAG (Retrieval-Augmented Generation) system that uses local open-sourc
 ## Project Structure
 
 ```
-rag/
+neorag/
 ├── data/                 # Your markdown chunk files
 ├── index/                # Qdrant vector DB storage
-├── rag/
-│   ├── __init__.py
-│   ├── config.py         # Model & path configurations
-│   ├── loader.py         # Chunk loading with metadata
-│   ├── indexer.py        # Build vector index
-│   ├── retriever.py      # Core retrieval with re-ranking
-│   └── evaluate.py       # Accuracy evaluation
-├── cli.py                # CLI interface
+├── src/
+│   └── neorag/
+│       ├── __init__.py
+│       ├── config.py         # Model & path configurations
+│       ├── loader.py         # Chunk loading with metadata
+│       ├── indexer.py        # Build vector index
+│       ├── retriever.py      # Core retrieval with re-ranking
+│       ├── evaluate.py       # Accuracy evaluation
+│       └── cli.py            # CLI interface (entry point)
 ├── requirements.txt
 └── .env                  # API keys (if needed)
 ```
@@ -49,12 +50,12 @@ python cli.py query "your query here"
 Create a test set in `eval/test_set.json` and run:
 
 ```bash
-python -m rag.evaluate eval/test_set.json
+python -m neorag.evaluate eval/test_set.json
 ```
 
 ## Configuration
 
-Key settings in `rag/config.py`:
+Key settings in `neorag/config.py`:
 
 - `EMBEDDING_MODEL`: "BAAI/bge-base-en-v1.5" (excellent balance of quality/speed)
 - `RERANK_MODEL`: "cross-encoder/ms-marco-MiniLM-L-6-v2" (critical for accuracy)
