@@ -6,10 +6,6 @@ DATA_DIR = Path("data")
 INDEX_DIR = Path("index")
 
 
-def ensure_dirs():
-    """Create all required directories for NeoRAG (called by --bootstrap)."""
-    INDEX_DIR.mkdir(exist_ok=True)
-    # Future directory creation can be added here
 
 
 def validate_dirs():

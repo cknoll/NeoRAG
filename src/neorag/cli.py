@@ -153,7 +153,7 @@ def main():
     args = parser.parse_args()
 
     if args.bootstrap:
-        from .config import ensure_dirs
+        from .auxiliary import ensure_dirs
 
         ensure_dirs()
         print("Bootstrap complete: created required directories.")

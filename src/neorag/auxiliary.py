@@ -1,6 +1,15 @@
 
 
 # TODO-AIDER: add docstring
+from .config import INDEX_DIR
+
+
+def ensure_dirs():
+    """Create all required directories for NeoRAG (called by --bootstrap)."""
+    INDEX_DIR.mkdir(exist_ok=True)
+    # Future directory creation can be added here
+
+
 class OneToOneMapping(object):
     """
     """
