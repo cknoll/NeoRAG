@@ -3,7 +3,7 @@
 This module materialises the provenance substrate required by FF2
 (see improvement-plan.md §3 P1.1, §4 step 3). It groups N consecutive
 germanrag chunks into synthetic parent documents ``doc_{k:05d}.md``
-written to ``data/sample_corpus/``, and emits a sidecar
+written to ``data/germanrag_docs_corpus/``, and emits a sidecar
 ``provenance.jsonl`` carrying per-chunk provenance metadata
 (``doc_id``, ``chunk_idx_in_doc``, ``byte_start``, ``byte_end``,
 ``sha256``, ``germanrag_row_idx``).
@@ -32,7 +32,7 @@ from typing import Iterator
 CHUNK_SEP_TEMPLATE = "\n\n---<!-- chunk {i} -->\n\n"
 
 DEFAULT_CHUNKS_PER_DOC = 50
-DEFAULT_CORPUS_DIR = Path("data/sample_corpus")
+DEFAULT_CORPUS_DIR = Path("data/germanrag_docs_corpus")
 PROVENANCE_FILENAME = "provenance.jsonl"
 
 

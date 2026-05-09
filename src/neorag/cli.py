@@ -6,19 +6,44 @@ from pathlib import Path
 # stay fast. Top-level imports here must remain lightweight.
 
 
+def _derive_collection_from_data_dir(data_dir: str) -> str:
+    """Derive the Qdrant collection name from a corpus directory name.
+
+    Convention: hyphens → underscores; the collection name is the directory
+    name after this normalisation. Example: ``data/germanrag_docs_corpus``
+    → ``germanrag_docs_corpus``.
+    """
+    return Path(data_dir).name.replace("-", "_")
+
+
 def _cmd_index(args):
     """Build vector index from chunks."""
-    from .config import validate_dirs
+    from .config import CORPUS_DEFAULTS, validate_dirs
     from .loader import load_chunks
     from .indexer import build_index
 
     validate_dirs()
+
+    # Resolve collection name: explicit override → convention → error.
+    if args.collection:
+        collection_name = args.collection
+    else:
+        data_dir_name = Path(args.data_dir).name
+        if data_dir_name in CORPUS_DEFAULTS:
+            collection_name = CORPUS_DEFAULTS[data_dir_name]
+        else:
+            collection_name = _derive_collection_from_data_dir(args.data_dir)
+            print(
+                f"NOTE: no corpus default for '{data_dir_name}'; "
+                f"indexing into collection '{collection_name}'"
+            )
+
     print(f"Loading chunks from {args.data_dir}...")
     documents = load_chunks(Path(args.data_dir))
     print(f"Loaded {len(documents)} documents")
 
-    print("Building index...")
-    build_index(documents)
+    print(f"Building index into collection '{collection_name}'...")
+    build_index(documents, collection_name=collection_name)
     print("Index built successfully!")
 
 
@@ -26,9 +51,9 @@ def _cmd_build_corpus(args):
     """Build the synthetic parent-document corpus over DiscoResearch/germanrag."""
     from .build_corpus import build_corpus
 
-    print(f"Building synthetic corpus in {args.corpus_dir} ...")
+    print(f"Building synthetic corpus in {args.data_dir} ...")
     summary = build_corpus(
-        corpus_dir=Path(args.corpus_dir),
+        corpus_dir=Path(args.data_dir),
         chunks_per_doc=args.chunks_per_doc,
         limit_chunks=args.limit_chunks,
         limit_docs=args.limit_docs,
@@ -50,16 +75,26 @@ def _cmd_query(args):
     context. Pass ``--no-generate`` to skip generation and only print
     the retrieved chunks (useful for retrieval debugging).
     """
-    from .config import validate_dirs
+    from .config import DEFAULT_COLLECTION, validate_dirs
     from .generate import _chunk_id
     from .retriever import get_retrieval_pipeline
 
     validate_dirs()
+
+    # Resolve collection: explicit --collection → data-dir convention → default.
+    if args.collection:
+        collection_name = args.collection
+    elif args.data_dir:
+        collection_name = _derive_collection_from_data_dir(args.data_dir)
+    else:
+        # No --data-dir given either: use the configured default collection.
+        collection_name = DEFAULT_COLLECTION
+
     print(f"Query: {args.query}")
 
     # Obtain the two-stage pipeline wrapper (no LLM involved here yet).
     # The wrapper orchestrates ANN retrieval + cross-encoder reranking.
-    pipeline = get_retrieval_pipeline()
+    pipeline = get_retrieval_pipeline(collection_name=collection_name)
     nodes = pipeline.retrieve(args.query)
 
     print("\n--- Retrieved chunks ---")
@@ -113,8 +148,13 @@ def _build_parser():
     )
     p_index.add_argument(
         "--data-dir",
-        default="data",
-        help="Directory containing markdown chunks",
+        required=True,
+        help="Directory containing markdown chunks (determines collection name via convention).",
+    )
+    p_index.add_argument(
+        "--collection",
+        default=None,
+        help="Qdrant collection name. If omitted, derived from --data-dir name.",
     )
     p_index.set_defaults(func=_cmd_index)
 
@@ -131,8 +171,8 @@ def _build_parser():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     p_bc.add_argument(
-        "--corpus-dir",
-        default=str(DEFAULT_CORPUS_DIR),
+        "--data-dir",
+        required=True,
         help="Target directory for synthetic parent documents (wiped on each run).",
     )
     p_bc.add_argument(
@@ -166,6 +206,17 @@ def _build_parser():
         ),
     )
     p_query.add_argument("query", help="Query string")
+    p_query.add_argument(
+        "--data-dir",
+        default=None,
+        help="Corpus directory whose collection to query. "
+        "If omitted, uses DEFAULT_COLLECTION from config.",
+    )
+    p_query.add_argument(
+        "--collection",
+        default=None,
+        help="Qdrant collection name. If omitted, derived from --data-dir or config default.",
+    )
     p_query.add_argument(
         "--no-generate",
         action="store_true",

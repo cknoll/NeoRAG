@@ -102,7 +102,25 @@ RERANK_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"  # Critical for accuracy
 
 # Qdrant
 QDRANT_PATH = str(INDEX_DIR / "qdrant")
-COLLECTION_NAME = "rag_chunks"
+
+# ---------------------------------------------------------------------------
+# Corpus → Qdrant-collection defaults
+# ---------------------------------------------------------------------------
+# Each corpus subdirectory under data/ maps to its own Qdrant collection.
+# The collection name is derived from the directory name (underscores only;
+# hyphens are replaced with underscores) unless overridden via --collection.
+#
+# DEFAULT_COLLECTION: the collection used by `neorag query` when neither
+#   --collection nor --data-dir is given. Falls back to the first entry
+#   in CORPUS_DEFAULTS if the configured collection does not exist in Qdrant.
+CORPUS_DEFAULTS: dict[str, str] = {
+    "podcast_fs290": "podcast_fs290",
+    "germanrag_docs_corpus": "germanrag_docs_corpus",
+}
+# Default collection for `neorag query` when no --collection is specified.
+DEFAULT_COLLECTION = "germanrag_docs_corpus"
+# Legacy fallback for code that still reads COLLECTION_NAME directly.
+COLLECTION_NAME = DEFAULT_COLLECTION
 
 # Retrieval
 TOP_K_BASE = 20  # Retrieve more for re-ranking
