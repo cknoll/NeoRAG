@@ -1,4 +1,4 @@
-import click
+import argparse
 from pathlib import Path
 from .loader import load_chunks
 from .indexer import build_index
@@ -9,79 +9,36 @@ from .build_corpus import (
     DEFAULT_CORPUS_DIR,
 )
 
-@click.group()
-@click.option('--bootstrap', is_flag=True, help='Create required directories (index, etc.) and exit.')
-def cli(bootstrap):
-    """Simple RAG CLI with high-accuracy retrieval."""
-    if bootstrap:
-        from .config import ensure_dirs
-        ensure_dirs()
-        click.echo("Bootstrap complete: created required directories.")
-        return
 
-@cli.command()
-@click.option('--data-dir', default='data', help='Directory containing markdown chunks')
-def index(data_dir):
+def _cmd_index(args):
     """Build vector index from chunks."""
     from .config import validate_dirs
     validate_dirs()
-    click.echo(f"Loading chunks from {data_dir}...")
-    documents = load_chunks(Path(data_dir))
-    click.echo(f"Loaded {len(documents)} documents")
+    print(f"Loading chunks from {args.data_dir}...")
+    documents = load_chunks(Path(args.data_dir))
+    print(f"Loaded {len(documents)} documents")
 
-    click.echo("Building index...")
+    print("Building index...")
     build_index(documents)
-    click.echo("Index built successfully!")
+    print("Index built successfully!")
 
-@cli.command("build-corpus")
-@click.option(
-    "--corpus-dir",
-    default=str(DEFAULT_CORPUS_DIR),
-    show_default=True,
-    help="Target directory for synthetic parent documents (wiped on each run).",
-)
-@click.option(
-    "--chunks-per-doc",
-    default=DEFAULT_CHUNKS_PER_DOC,
-    show_default=True,
-    type=int,
-    help="Number of consecutive germanrag chunks grouped into one parent doc.",
-)
-@click.option(
-    "--limit-chunks",
-    default=None,
-    type=int,
-    help="Stop after this many unique chunks (default: no limit).",
-)
-@click.option(
-    "--limit-docs",
-    default=None,
-    type=int,
-    help="Stop after this many parent documents (default: no limit).",
-)
-def build_corpus_cmd(corpus_dir, chunks_per_doc, limit_chunks, limit_docs):
-    """Build the synthetic parent-document corpus over DiscoResearch/germanrag.
 
-    See ``neorag.build_corpus`` for the provenance rationale. Produces
-    ``doc_{k:05d}.md`` files and a ``provenance.jsonl`` sidecar under
-    ``corpus-dir``. The target directory is wiped on every invocation.
-    """
-    click.echo(f"Building synthetic corpus in {corpus_dir} ...")
+def _cmd_build_corpus(args):
+    """Build the synthetic parent-document corpus over DiscoResearch/germanrag."""
+    print(f"Building synthetic corpus in {args.corpus_dir} ...")
     summary = build_corpus(
-        corpus_dir=Path(corpus_dir),
-        chunks_per_doc=chunks_per_doc,
-        limit_chunks=limit_chunks,
-        limit_docs=limit_docs,
+        corpus_dir=Path(args.corpus_dir),
+        chunks_per_doc=args.chunks_per_doc,
+        limit_chunks=args.limit_chunks,
+        limit_docs=args.limit_docs,
     )
-    click.echo(
+    print(
         f"Wrote {summary['n_docs']} parent documents "
         f"({summary['n_chunks']} chunks) to {summary['corpus_dir']}"
     )
 
 
-@cli.command()
-@click.argument('query')
-def query(query):
+def _cmd_query(args):
     """Query the RAG system.
 
     Runs a two-stage retrieval pipeline:
@@ -90,22 +47,116 @@ def query(query):
     """
     from .config import validate_dirs
     validate_dirs()
-    click.echo(f"Query: {query}")
+    print(f"Query: {args.query}")
 
     # Obtain the two-stage pipeline wrapper (no LLM involved). The wrapper
     # orchestrates ANN retrieval + cross-encoder reranking internally.
     pipeline = get_retrieval_pipeline()
-    nodes = pipeline.retrieve(query)
+    nodes = pipeline.retrieve(args.query)
 
-    click.echo("\n--- Results ---")
+    print("\n--- Results ---")
     for i, node in enumerate(nodes, 1):
         # node.score: relevance score assigned by the reranker (higher = better)
-        click.echo(f"\n{i}. Score: {node.score:.3f}")
-        click.echo(f"   Source: {node.metadata.get('source', 'unknown')}")
-        click.echo(f"   Text: {node.text[:200]}...")
+        print(f"\n{i}. Score: {node.score:.3f}")
+        print(f"   Source: {node.metadata.get('source', 'unknown')}")
+        print(f"   Text: {node.text[:200]}...")
+
+
+def _build_parser():
+    parser = argparse.ArgumentParser(
+        prog="neorag",
+        description="Simple RAG CLI with high-accuracy retrieval.",
+    )
+    parser.add_argument(
+        "--bootstrap",
+        action="store_true",
+        help="Create required directories (index, etc.) and exit.",
+    )
+
+    subparsers = parser.add_subparsers(dest="command")
+
+    # index
+    p_index = subparsers.add_parser(
+        "index",
+        help="Build vector index from chunks.",
+        description="Build vector index from chunks.",
+    )
+    p_index.add_argument(
+        "--data-dir",
+        default="data",
+        help="Directory containing markdown chunks",
+    )
+    p_index.set_defaults(func=_cmd_index)
+
+    # build-corpus
+    p_bc = subparsers.add_parser(
+        "build-corpus",
+        help="Build the synthetic parent-document corpus over DiscoResearch/germanrag.",
+        description=(
+            "Build the synthetic parent-document corpus over DiscoResearch/germanrag. "
+            "See neorag.build_corpus for the provenance rationale. Produces "
+            "doc_{k:05d}.md files and a provenance.jsonl sidecar under corpus-dir. "
+            "The target directory is wiped on every invocation."
+        ),
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    p_bc.add_argument(
+        "--corpus-dir",
+        default=str(DEFAULT_CORPUS_DIR),
+        help="Target directory for synthetic parent documents (wiped on each run).",
+    )
+    p_bc.add_argument(
+        "--chunks-per-doc",
+        default=DEFAULT_CHUNKS_PER_DOC,
+        type=int,
+        help="Number of consecutive germanrag chunks grouped into one parent doc.",
+    )
+    p_bc.add_argument(
+        "--limit-chunks",
+        default=None,
+        type=int,
+        help="Stop after this many unique chunks (default: no limit).",
+    )
+    p_bc.add_argument(
+        "--limit-docs",
+        default=None,
+        type=int,
+        help="Stop after this many parent documents (default: no limit).",
+    )
+    p_bc.set_defaults(func=_cmd_build_corpus)
+
+    # query
+    p_query = subparsers.add_parser(
+        "query",
+        help="Query the RAG system.",
+        description=(
+            "Query the RAG system. Runs a two-stage retrieval pipeline: "
+            "1. ANN search in Qdrant to get initial candidate chunks. "
+            "2. Cross-encoder reranking to select the most relevant results."
+        ),
+    )
+    p_query.add_argument("query", help="Query string")
+    p_query.set_defaults(func=_cmd_query)
+
+    return parser
+
 
 def main():
-    cli()
+    parser = _build_parser()
+    args = parser.parse_args()
 
-if __name__ == '__main__':
-    cli()
+    if args.bootstrap:
+        from .config import ensure_dirs
+        ensure_dirs()
+        print("Bootstrap complete: created required directories.")
+        return
+
+    if not getattr(args, "func", None):
+        parser.print_help()
+        return
+
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()
