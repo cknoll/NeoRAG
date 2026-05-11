@@ -1,7 +1,4 @@
-"""Neurosymbolic answer validation for NeoRAG.
-
-This package hosts the Pydantic answer schema (``schema.py``) plus the
-structural / groundedness / SHACL validators (improvement-plan2 step 3).
+"""NeoRAG answer-validation package.
 
 Public API:
 
@@ -9,8 +6,6 @@ Public API:
   validators (structural, groundedness, SHACL) and returns the union
   of their :class:`Violation`\\ s.
 - :class:`Violation` -- the dataclass returned by every validator.
-- :class:`Answer`, :class:`Claim`, :class:`Citation` -- the Pydantic
-  answer schema.
 """
 
 from __future__ import annotations
@@ -18,15 +13,11 @@ from __future__ import annotations
 from typing import Any, Iterable, List
 
 from .groundedness import validate_groundedness
-from .schema import Answer, Citation, Claim
 from .shacl import validate_shacl
 from .structural import validate_structural
 from .violation import Violation
 
 __all__ = [
-    "Answer",
-    "Citation",
-    "Claim",
     "Violation",
     "validate",
     "validate_structural",
