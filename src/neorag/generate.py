@@ -13,9 +13,15 @@ without redoing the prompt scaffolding.
 
 from __future__ import annotations
 
-from typing import Any, Iterable, List
+import json
+import re
+from dataclasses import dataclass
+from typing import Any, Iterable, List, Optional
+
+from pydantic import ValidationError
 
 from .llm_client import LLMBackend, LLMResponse
+from .validate.schema import Answer
 
 
 # TODO: check if consistent language (system-prompt and data) improves performance
@@ -110,3 +116,171 @@ def generate_answer(
     messages = build_prompt(query, retrieved_nodes)
     response: LLMResponse = llm.chat(messages)
     return response.content
+
+
+# ---------------------------------------------------------------------------
+# Structured generation (improvement-plan2 step 2)
+# ---------------------------------------------------------------------------
+
+STRUCTURED_SYSTEM_PROMPT = (
+    "You are a careful retrieval-augmented assistant. "
+    "Answer the user's question using ONLY the information contained "
+    "in the provided context chunks. Each chunk is prefixed with a "
+    "bracketed identifier of the form [doc_id#chunk_idx]. "
+    "If the context does not contain enough information to answer, "
+    "say so explicitly in the 'summary' field and emit a single claim "
+    "stating that the context is insufficient (still cite the most "
+    "relevant chunk).\n\n"
+    "You MUST reply with a single JSON object and nothing else "
+    "(no markdown, no code fences, no commentary). The JSON object "
+    "MUST conform exactly to this schema:\n"
+    "{\n"
+    '  "summary": "<free-form natural-language answer in the user\'s language>",\n'
+    '  "claims": [\n'
+    "    {\n"
+    '      "text": "<a single self-contained factual statement>",\n'
+    '      "citations": [\n'
+    "        {\n"
+    '          "doc_id": "<doc id from a [doc_id#chunk_idx] tag>",\n'
+    '          "chunk_idx_in_doc": <integer chunk index from the same tag>,\n'
+    '          "quote": "<optional verbatim snippet from the cited chunk>"\n'
+    "        }\n"
+    "      ]\n"
+    "    }\n"
+    "  ]\n"
+    "}\n\n"
+    "Every claim MUST have at least one citation, and each citation's "
+    "(doc_id, chunk_idx_in_doc) MUST correspond to one of the "
+    "[doc_id#chunk_idx] tags in the provided context. "
+    "Answer in the same language as the user's question."
+)
+
+
+@dataclass
+class StructuredGenerationResult:
+    """Outcome of a structured generation attempt.
+
+    Attributes
+    ----------
+    raw_text:
+        The exact text returned by the LLM backend, unmodified.
+    parsed:
+        The parsed :class:`Answer` if both JSON decoding and Pydantic
+        validation succeeded, else ``None``.
+    parse_error:
+        Human-readable description of the failure mode when ``parsed``
+        is ``None``. ``None`` on success. Surfaced (not swallowed) so
+        the structural validator (step 3) can convert it directly into
+        a ``Violation``.
+    """
+
+    raw_text: str
+    parsed: Optional[Answer]
+    parse_error: Optional[str]
+
+
+def build_structured_prompt(query: str, retrieved_nodes: Iterable[Any]) -> List[dict]:
+    """Build messages instructing the LLM to emit :class:`Answer` JSON."""
+    nodes = list(retrieved_nodes)
+    context = render_context(nodes)
+    if context:
+        user_content = (
+            f"Context:\n{context}\n\n"
+            f"Question: {query}\n\n"
+            "Reply with a single JSON object as specified."
+        )
+    else:
+        user_content = (
+            f"Question: {query}\n\n"
+            "Reply with a single JSON object as specified."
+        )
+
+    return [
+        {"role": "system", "content": STRUCTURED_SYSTEM_PROMPT},
+        {"role": "user", "content": user_content},
+    ]
+
+
+# Matches a ```json ... ``` or bare ``` ... ``` fenced block; some LLMs
+# wrap JSON in markdown despite instructions not to.
+_FENCED_JSON_RE = re.compile(
+    r"```(?:json)?\s*(\{.*?\})\s*```",
+    re.DOTALL | re.IGNORECASE,
+)
+
+
+def _extract_json_object(text: str) -> Optional[str]:
+    """Best-effort extraction of a single JSON object string from ``text``.
+
+    Returns the substring (still as text, not parsed) or ``None`` if no
+    plausible JSON object is found. Intentionally permissive: the
+    structural validator turns parse failures into violations, so it is
+    fine for this helper to occasionally return malformed candidates.
+    """
+    if not text:
+        return None
+
+    stripped = text.strip()
+    if stripped.startswith("{") and stripped.endswith("}"):
+        return stripped
+
+    m = _FENCED_JSON_RE.search(text)
+    if m is not None:
+        return m.group(1)
+
+    # Fall back to the substring between the first '{' and last '}'.
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        return text[start : end + 1]
+
+    return None
+
+
+def generate_structured_answer(
+    query: str,
+    retrieved_nodes: Iterable[Any],
+    llm: LLMBackend,
+) -> StructuredGenerationResult:
+    """Run the LLM and try to parse its reply as an :class:`Answer`.
+
+    Parsing failures (no JSON object found, malformed JSON, schema
+    violations) are surfaced via ``StructuredGenerationResult.parse_error``
+    rather than swallowed -- the structural validator added in step 3
+    will turn them into ``Violation`` objects.
+    """
+    messages = build_structured_prompt(query, retrieved_nodes)
+    response: LLMResponse = llm.chat(messages)
+    raw = response.content or ""
+
+    candidate = _extract_json_object(raw)
+    if candidate is None:
+        return StructuredGenerationResult(
+            raw_text=raw,
+            parsed=None,
+            parse_error="No JSON object found in LLM response.",
+        )
+
+    try:
+        data = json.loads(candidate)
+    except json.JSONDecodeError as e:
+        return StructuredGenerationResult(
+            raw_text=raw,
+            parsed=None,
+            parse_error=f"JSON decoding failed: {e}",
+        )
+
+    try:
+        answer = Answer.model_validate(data)
+    except ValidationError as e:
+        return StructuredGenerationResult(
+            raw_text=raw,
+            parsed=None,
+            parse_error=f"Schema validation failed: {e}",
+        )
+
+    return StructuredGenerationResult(
+        raw_text=raw,
+        parsed=answer,
+        parse_error=None,
+    )

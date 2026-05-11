@@ -13,3 +13,4 @@ datasets
 ragas
 httpx
 pytest
+pydantic>=2.0
