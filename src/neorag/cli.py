@@ -126,7 +126,7 @@ def _cmd_query(args):
 def _build_parser():
     # Import defaults lazily to keep `--help` fast in case build_corpus pulls
     # in heavier dependencies in the future.
-    from .build_corpus import DEFAULT_CHUNKS_PER_DOC, DEFAULT_CORPUS_DIR
+    from .build_corpus import DEFAULT_CHUNKS_PER_DOC
 
     parser = argparse.ArgumentParser(
         prog="neorag",
