@@ -24,6 +24,26 @@ if os.getenv("PYTEST_IPS") == "True":
     def pytest_exception_interact(node, call, report):
         ipydex.ips_excepthook(call.excinfo.type, call.excinfo.value, call.excinfo.tb, leave_ut=True)
 
+def pytest_collection_modifyitems(config, items):
+    """Skip tests marked ``slow`` unless ``--run-slow`` is passed.
+
+    Slow tests typically pull in heavy ML stacks (HuggingFace, Qdrant) or
+    perform real I/O against a model index, so they are opt-in by default.
+    """
+    if config.getoption("--run-slow"):
+        return
+    skip_slow = __import__("pytest").mark.skip(reason="need --run-slow option to run")
+    for item in items:
+        if "slow" in item.keywords:
+            item.add_marker(skip_slow)
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "slow: mark test as slow (skipped unless --run-slow is given)"
+    )
+
+
 def pytest_addoption(parser):
     """Add custom command line options."""
     parser.addoption(
@@ -31,6 +51,14 @@ def pytest_addoption(parser):
         action="store_true",
         default=False,
         help="Allow tests that make real API calls",
+    )
+
+
+    parser.addoption(
+        "--run-slow",
+        action="store_true",
+        default=False,
+        help="run slow integration tests (real retriever, model downloads).",
     )
 
 

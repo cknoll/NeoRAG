@@ -1,0 +1,26 @@
+# SHACL shapes for a NeoRAG Answer (v0.1)
+#
+# This file defines the static structure of nrg:CitationShape.
+# The "cited chunk must be retrieved" constraint (sh:in over
+# nrg:citationKey) is injected dynamically by shacl.py at
+# validation time, because the allowed-key set depends on the
+# specific retrieval result for each query.
+
+@prefix sh:  <http://www.w3.org/ns/shacl#> .
+@prefix nrg: <https://neorag.example/ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+nrg:CitationShape
+    a sh:NodeShape ;
+    sh:targetClass nrg:Citation ;
+
+    # Every citation must carry exactly one citation key string.
+    # The sh:in constraint restricting it to retrieved keys is
+    # added dynamically in shacl._build_shapes_graph().
+    sh:property [
+        sh:path     nrg:citationKey ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:name     "citation key" ;
+    ] .

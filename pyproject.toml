@@ -10,11 +10,10 @@ build-backend = "setuptools.build_meta"
 
 
 name = "neorag"
-description = "..."
-# author has their mail at tu-dresden.de
-authors=[{name = "Carsten Knoll", email = "firstname.lastname@domain.org"}]
+description = "Neurosymbolic answer validation with self-refinement for RAG pipelines"
+authors=[{name = "Carsten Knoll", email = "carsten.knoll@posteo.de"}]
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 license = { text = "GNU General Public License v3 (GPLv3)" }
 
 dynamic = ["dependencies", "version"]

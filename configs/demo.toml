@@ -1,0 +1,28 @@
+# NeoRAG demo configuration
+#
+# Wires up the stub LLM backend so the full evaluate pipeline can run
+# in CI without any API key.  Retrieval still requires a running Qdrant
+# instance with an indexed corpus.
+#
+# Usage:
+#   neorag eval configs/demo.toml
+#
+# The stub backend returns a canned structured JSON response for every
+# query, which lets the validator and refinement loop execute end-to-end
+# while keeping the evaluation deterministic and free of API costs.
+
+[llm]
+provider = "stub"
+model = "stub"
+max_tokens = 256
+
+[eval]
+test_path = "tests/fixtures/demo_test.json"
+max_iter = 2
+feedback_granularity = "per_violation"
+no_refine = false
+runs_dir = "runs"
+
+top_k_base = 20
+top_k_final = 3
+default_collection = "germanrag_docs_corpus"

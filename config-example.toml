@@ -6,3 +6,23 @@ LLM_MODEL = "google/gemini-2.0-flash-001"
 LLM_BASE_URL = "https://openrouter.ai/api"
 LLM_MAX_TOKENS = 1024
 LLM_TIMEOUT_S = 60.0
+
+# ---------------------------------------------------------------------------
+# Corpus / collection defaults
+# ---------------------------------------------------------------------------
+# CORPUS_DEFAULTS maps a corpus directory name (under data/) to its Qdrant
+# collection. Each corpus gets its own collection so multiple corpora can
+# coexist without reindexing.
+#
+#   data/germanrag_docs_corpus/  →  germanrag_docs_corpus   (default)
+#   data/podcast_fs290/         →  podcast_fs290
+#
+# DEFAULT_COLLECTION is the collection used by `neorag query` when neither
+# --collection nor --data-dir is given.  Falls back to the first entry in
+# CORPUS_DEFAULTS if the configured collection does not exist in Qdrant.
+
+CORPUS_DEFAULTS = {
+    "podcast_fs290": "podcast_fs290",
+    "germanrag_docs_corpus": "germanrag_docs_corpus",
+}
+DEFAULT_COLLECTION = "germanrag_docs_corpus"

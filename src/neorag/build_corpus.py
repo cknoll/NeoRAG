@@ -3,7 +3,7 @@
 This module materialises the provenance substrate required by FF2
 (see improvement-plan.md §3 P1.1, §4 step 3). It groups N consecutive
 germanrag chunks into synthetic parent documents ``doc_{k:05d}.md``
-written to ``data/sample_corpus/``, and emits a sidecar
+written to the target directory, and emits a sidecar
 ``provenance.jsonl`` carrying per-chunk provenance metadata
 (``doc_id``, ``chunk_idx_in_doc``, ``byte_start``, ``byte_end``,
 ``sha256``, ``germanrag_row_idx``).
@@ -32,7 +32,6 @@ from typing import Iterator
 CHUNK_SEP_TEMPLATE = "\n\n---<!-- chunk {i} -->\n\n"
 
 DEFAULT_CHUNKS_PER_DOC = 50
-DEFAULT_CORPUS_DIR = Path("data/sample_corpus")
 PROVENANCE_FILENAME = "provenance.jsonl"
 
 
@@ -57,7 +56,7 @@ def _iter_unique_positive_chunks(dataset) -> Iterator[tuple[int, str]]:
 
 
 def build_corpus(
-    corpus_dir: Path = DEFAULT_CORPUS_DIR,
+    corpus_dir: Path | None = None,
     chunks_per_doc: int = DEFAULT_CHUNKS_PER_DOC,
     limit_chunks: int | None = None,
     limit_docs: int | None = None,
@@ -68,6 +67,7 @@ def build_corpus(
     ----------
     corpus_dir
         Target directory. Wiped and recreated on every invocation.
+        Defaults to ``data/<DEFAULT_COLLECTION>/`` from config.
     chunks_per_doc
         Number of chunks grouped into one synthetic parent document.
     limit_chunks
@@ -89,6 +89,11 @@ def build_corpus(
             "The 'datasets' package is required for build_corpus(). "
             "Install it (see requirements.txt)."
         ) from e
+
+    if corpus_dir is None:
+        from .config import DEFAULT_COLLECTION
+
+        corpus_dir = Path("data") / DEFAULT_COLLECTION
 
     corpus_dir = Path(corpus_dir)
     if corpus_dir.exists():
