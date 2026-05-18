@@ -65,15 +65,15 @@ def _cmd_build_corpus(args):
 
 
 def _cmd_query(args):
-    """Query the RAG system.
+    """Query the RAG system: retrieve → generate → validate → (refine)*.
 
-    Runs a two-stage retrieval pipeline:
-    1. ANN search in Qdrant to get initial candidate chunks.
-    2. Cross-encoder reranking to select the most relevant results.
+    Runs a two-stage retrieval pipeline (ANN + cross-encoder reranking),
+    then generates a structured answer with citations, validates it, and
+    optionally refines it in a loop until all violations are resolved or
+    --max-iter is reached.
 
-    By default also runs an LLM generation step over the retrieved
-    context. Pass ``--no-generate`` to skip generation and only print
-    the retrieved chunks (useful for retrieval debugging).
+    Pass --no-generate to skip generation entirely (retrieval-only debug).
+    Pass --no-refine to validate but skip the refinement loop.
     """
     from .config import DEFAULT_COLLECTION, validate_dirs
     from .generate import _chunk_id
@@ -87,19 +87,15 @@ def _cmd_query(args):
     elif args.data_dir:
         collection_name = _derive_collection_from_data_dir(args.data_dir)
     else:
-        # No --data-dir given either: use the configured default collection.
         collection_name = DEFAULT_COLLECTION
 
     print(f"Query: {args.query}")
 
-    # Obtain the two-stage pipeline wrapper (no LLM involved here yet).
-    # The wrapper orchestrates ANN retrieval + cross-encoder reranking.
     pipeline = get_retrieval_pipeline(collection_name=collection_name)
     nodes = pipeline.retrieve(args.query)
 
     print("\n--- Retrieved chunks ---")
     for i, node in enumerate(nodes, 1):
-        # node.score: relevance score assigned by the reranker (higher = better)
         print(f"\n{i}. Score: {node.score:.3f}")
         print(f"   ChunkId: {_chunk_id(node)}")
         print(f"   Source: {node.metadata.get('source', 'unknown')}")
@@ -108,19 +104,62 @@ def _cmd_query(args):
     if args.no_generate:
         return
 
-    # Generation step: ask the configured LLM backend for an answer
-    # grounded in the retrieved chunks.
-    from .generate import generate_answer
+    from .generate import generate_structured_answer
     from .llm_client import LLMClient
+    from .validate import validate
+    from .validate.refine import refine
 
     llm = LLMClient.from_config()
     try:
-        answer = generate_answer(args.query, nodes, llm)
+        gen_result = generate_structured_answer(args.query, nodes, llm)
+
+        if gen_result.parsed is None:
+            print(f"\n--- Generation failed ---")
+            print(f"Could not parse LLM response: {gen_result.parse_error}")
+            return
+
+        violations = validate(gen_result.raw_text, nodes)
+        final_answer = gen_result.parsed
+        history = []
+
+        if violations and not args.no_refine:
+            final_answer, history = refine(
+                query=args.query,
+                retrieved_nodes=nodes,
+                answer=gen_result.parsed,
+                violations=violations,
+                llm=llm,
+                max_iter=args.max_iter,
+                feedback_granularity=args.feedback_granularity,
+            )
     finally:
         llm.close()
 
+    # Remaining violations: from the last history entry that parsed, or the
+    # original violations when no refinement ran or every retry failed.
+    if history:
+        last_valid = next((h for h in reversed(history) if h.answer is not None), None)
+        remaining = last_valid.violations_out if last_valid else violations
+    else:
+        remaining = violations
+
     print("\n--- Answer ---")
-    print(answer)
+    print(final_answer.summary)
+    print("\nClaims:")
+    for idx, claim in enumerate(final_answer.claims, 1):
+        cites = ", ".join(f"[{c.doc_id}#{c.chunk_idx_in_doc}]" for c in claim.citations)
+        print(f"  {idx}. {claim.text}  ({cites})")
+
+    print("\n--- Validation ---")
+    if history:
+        print(f"Refinement iterations: {len(history)}")
+    if not remaining:
+        print("No violations.")
+    else:
+        print(f"{len(remaining)} violation(s):")
+        for v in remaining:
+            loc = f" {v.location}:" if v.location else ""
+            print(f"  [{v.kind}]{loc} {v.message}")
 
 
 def _build_parser():
@@ -200,10 +239,10 @@ def _build_parser():
         "query",
         help="Query the RAG system.",
         description=(
-            "Query the RAG system. Runs a two-stage retrieval pipeline: "
-            "1. ANN search in Qdrant to get initial candidate chunks. "
-            "2. Cross-encoder reranking to select the most relevant results."
+            "Query the RAG system. Runs: retrieval → structured generation → "
+            "validation → optional self-refinement loop."
         ),
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     p_query.add_argument("query", help="Query string")
     p_query.add_argument(
@@ -220,7 +259,25 @@ def _build_parser():
     p_query.add_argument(
         "--no-generate",
         action="store_true",
-        help="Skip the LLM generation step; only print retrieved chunks.",
+        help="Skip LLM generation entirely; only print retrieved chunks.",
+    )
+    p_query.add_argument(
+        "--no-refine",
+        action="store_true",
+        help="Validate the answer but skip the self-refinement loop.",
+    )
+    p_query.add_argument(
+        "--max-iter",
+        type=int,
+        default=3,
+        metavar="N",
+        help="Maximum number of refinement iterations.",
+    )
+    p_query.add_argument(
+        "--feedback-granularity",
+        choices=["coarse", "per_violation"],
+        default="per_violation",
+        help="How violations are described in the refinement prompt.",
     )
     p_query.set_defaults(func=_cmd_query)
 
