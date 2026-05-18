@@ -162,6 +162,20 @@ def _cmd_query(args):
             print(f"  [{v.kind}]{loc} {v.message}")
 
 
+def _cmd_eval(args):
+    """Run the full evaluation pipeline on a labelled test set."""
+    from .evaluate import evaluate
+
+    run_dir = evaluate(
+        test_path=args.test_path,
+        runs_dir=args.runs_dir,
+        max_iter=args.max_iter,
+        feedback_granularity=args.feedback_granularity,
+        no_refine=args.no_refine,
+    )
+    return run_dir
+
+
 def _build_parser():
     # Import defaults lazily to keep `--help` fast in case build_corpus pulls
     # in heavier dependencies in the future.
@@ -280,6 +294,47 @@ def _build_parser():
         help="How violations are described in the refinement prompt.",
     )
     p_query.set_defaults(func=_cmd_query)
+
+    # eval
+    p_eval = subparsers.add_parser(
+        "eval",
+        help="Evaluate retrieval + generation quality on a labelled test set.",
+        description=(
+            "Evaluate NeoRAG on a JSON test set. Measures MRR@10, Recall@5, "
+            "and (with a configured LLM) constraint-violation rates before/after "
+            "refinement. Dumps a timestamped run directory under --runs-dir."
+        ),
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    p_eval.add_argument(
+        "test_path",
+        help="Path to JSON test file (list of {query, expected_sources} objects).",
+    )
+    p_eval.add_argument(
+        "--runs-dir",
+        default="runs",
+        metavar="DIR",
+        help="Parent directory for timestamped run folders.",
+    )
+    p_eval.add_argument(
+        "--no-refine",
+        action="store_true",
+        help="Validate answers but skip the self-refinement loop.",
+    )
+    p_eval.add_argument(
+        "--max-iter",
+        type=int,
+        default=3,
+        metavar="N",
+        help="Maximum refinement iterations per query.",
+    )
+    p_eval.add_argument(
+        "--feedback-granularity",
+        choices=["coarse", "per_violation"],
+        default="per_violation",
+        help="How violations are described in the refinement prompt.",
+    )
+    p_eval.set_defaults(func=_cmd_eval)
 
     return parser
 
