@@ -201,22 +201,12 @@ def build_structured_prompt(query: str, retrieved_nodes: Iterable[Any]) -> List[
     ]
 
 
-def generate_structured_answer(
-    query: str,
-    retrieved_nodes: Iterable[Any],
-    llm: LLMBackend,
-) -> StructuredGenerationResult:
-    """Run the LLM and try to parse its reply as an :class:`Answer`.
+def _parse_structured_response(raw: str) -> StructuredGenerationResult:
+    """Parse a raw LLM string into a :class:`StructuredGenerationResult`.
 
-    Parsing failures (no JSON object found, malformed JSON, schema
-    violations) are surfaced via ``StructuredGenerationResult.parse_error``
-    rather than swallowed -- the structural validator added in step 3
-    will turn them into ``Violation`` objects.
+    Factored out of :func:`generate_structured_answer` so the refinement
+    loop can reuse it without rebuilding the full prompt.
     """
-    messages = build_structured_prompt(query, retrieved_nodes)
-    response: LLMResponse = llm.chat(messages)
-    raw = response.content or ""
-
     candidate = _extract_json_object(raw)
     if candidate is None:
         return StructuredGenerationResult(
@@ -248,3 +238,20 @@ def generate_structured_answer(
         parsed=answer,
         parse_error=None,
     )
+
+
+def generate_structured_answer(
+    query: str,
+    retrieved_nodes: Iterable[Any],
+    llm: LLMBackend,
+) -> StructuredGenerationResult:
+    """Run the LLM and try to parse its reply as an :class:`Answer`.
+
+    Parsing failures (no JSON object found, malformed JSON, schema
+    violations) are surfaced via ``StructuredGenerationResult.parse_error``
+    rather than swallowed -- the structural validator added in step 3
+    will turn them into ``Violation`` objects.
+    """
+    messages = build_structured_prompt(query, retrieved_nodes)
+    response: LLMResponse = llm.chat(messages)
+    return _parse_structured_response(response.content or "")
