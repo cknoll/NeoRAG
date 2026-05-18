@@ -180,7 +180,9 @@ def refine(
                     violations_out=[],
                 )
             )
-            # Keep current_answer unchanged; carry the structural error forward.
+            # current_answer intentionally stays as the last valid Answer: a broken
+            # parse is worse than an imperfect-but-valid one, and the next iteration
+            # still needs a parseable JSON to show the LLM as "your previous answer."
             current_violations = [
                 Violation(
                     kind="structural",
@@ -188,6 +190,9 @@ def refine(
                 )
             ]
         else:
+            # Call groundedness and SHACL directly on the already-parsed Answer
+            # rather than going through the top-level validate() entry point, which
+            # would re-parse from raw text and re-run the structural check unnecessarily.
             new_violations = validate_groundedness(result.parsed, nodes) + validate_shacl(
                 result.parsed, nodes
             )
