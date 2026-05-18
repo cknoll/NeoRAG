@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: "If you use NeoRAG in your research, please cite it as below."
+type: software
+title: "NeoRAG: Neurosymbolic Answer Validation with Self-Refinement for Retrieval-Augmented Generation"
+version: "0.1.0"
+date-released: "2025-05-18"
+authors:
+  - family-names: Knoll
+    given-names: Carsten
+    affiliation: "Professur Grundlagen der Elektrotechnik, Technische Universität Dresden"
+    email: carsten.knoll@posteo.de
+license: GPL-3.0
+repository-code: "https://github.com/cknoll/neorag"
+abstract: >
+  NeoRAG is a small, open-source RAG prototype that demonstrates neurosymbolic
+  answer validation with a closed self-refinement loop and a pluggable LLM backend.
+  It serves as the technical Vorarbeit (preliminary work) for research question FF2
+  of the SoFAKTA proposal: lightweight SHACL, Pydantic, and groundedness constraints
+  in a configurable self-refinement loop as a hallucination-mitigation strategy
+  compatible with local-first, sovereignty-preserving deployments.
+keywords:
+  - retrieval-augmented generation
+  - RAG
+  - neurosymbolic AI
+  - SHACL
+  - answer validation
+  - self-refinement
+  - hallucination mitigation
+  - data sovereignty
