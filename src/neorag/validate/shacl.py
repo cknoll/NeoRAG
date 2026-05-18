@@ -15,7 +15,7 @@ constraint can be enforced both procedurally (Python) and declaratively
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Iterable, List, Set, Tuple
+from typing import Any, Iterable, List, Set
 
 from .schema import Answer
 from .violation import Violation
@@ -132,18 +132,7 @@ def validate_shacl(
     Returns ``Violation(kind="shacl", ...)`` entries. An empty list
     means the answer's RDF view conforms to all shapes.
     """
-    try:
-        from pyshacl import validate as pyshacl_validate
-    except ImportError:  # pragma: no cover
-        return [
-            Violation(
-                kind="shacl",
-                message=(
-                    "pyshacl is not installed; SHACL validation skipped. "
-                    "Install it via requirements.txt."
-                ),
-            )
-        ]
+    from pyshacl import validate as pyshacl_validate
 
     data_graph = _answer_to_rdf(answer)
     shapes_graph = _build_shapes_graph(_retrieved_keys(retrieved_nodes))
