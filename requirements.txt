@@ -15,3 +15,5 @@ httpx
 pytest
 pydantic>=2.0
 pydantic-settings>=2.0
+rdflib>=6.0
+pyshacl>=0.25

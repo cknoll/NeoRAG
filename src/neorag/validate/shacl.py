@@ -134,7 +134,7 @@ def validate_shacl(
     """
     try:
         from pyshacl import validate as pyshacl_validate
-    except ImportError as e:  # pragma: no cover
+    except ImportError:  # pragma: no cover
         return [
             Violation(
                 kind="shacl",
