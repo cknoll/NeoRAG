@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from typing import List, Optional, Tuple
 
-from ..generate import _extract_json_object
 from .schema import Answer
+from .utils import _extract_json_object
 from .violation import Violation
 
 

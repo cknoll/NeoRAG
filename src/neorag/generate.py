@@ -14,7 +14,6 @@ without redoing the prompt scaffolding.
 from __future__ import annotations
 
 import json
-import re
 from dataclasses import dataclass
 from typing import Any, Iterable, List, Optional
 
@@ -22,6 +21,7 @@ from pydantic import ValidationError
 
 from .llm_client import LLMBackend, LLMResponse
 from .validate.schema import Answer
+from .validate.utils import _extract_json_object
 
 
 # TODO: check if consistent language (system-prompt and data) improves performance
@@ -199,42 +199,6 @@ def build_structured_prompt(query: str, retrieved_nodes: Iterable[Any]) -> List[
         {"role": "system", "content": STRUCTURED_SYSTEM_PROMPT},
         {"role": "user", "content": user_content},
     ]
-
-
-# Matches a ```json ... ``` or bare ``` ... ``` fenced block; some LLMs
-# wrap JSON in markdown despite instructions not to.
-_FENCED_JSON_RE = re.compile(
-    r"```(?:json)?\s*(\{.*?\})\s*```",
-    re.DOTALL | re.IGNORECASE,
-)
-
-
-def _extract_json_object(text: str) -> Optional[str]:
-    """Best-effort extraction of a single JSON object string from ``text``.
-
-    Returns the substring (still as text, not parsed) or ``None`` if no
-    plausible JSON object is found. Intentionally permissive: the
-    structural validator turns parse failures into violations, so it is
-    fine for this helper to occasionally return malformed candidates.
-    """
-    if not text:
-        return None
-
-    stripped = text.strip()
-    if stripped.startswith("{") and stripped.endswith("}"):
-        return stripped
-
-    m = _FENCED_JSON_RE.search(text)
-    if m is not None:
-        return m.group(1)
-
-    # Fall back to the substring between the first '{' and last '}'.
-    start = text.find("{")
-    end = text.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        return text[start : end + 1]
-
-    return None
 
 
 def generate_structured_answer(
