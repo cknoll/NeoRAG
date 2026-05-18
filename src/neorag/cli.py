@@ -163,15 +163,61 @@ def _cmd_query(args):
 
 
 def _cmd_eval(args):
-    """Run the full evaluation pipeline on a labelled test set."""
+    """Run the full evaluation pipeline on a labelled test set.
+
+    ``test_path`` may be either a JSON test file (existing behaviour) or a
+    TOML settings file (e.g. ``configs/demo.toml``).  When a TOML file is
+    given, evaluation settings and the LLM backend are taken from the file;
+    CLI flags override individual settings values.
+    """
+    from pathlib import Path as _Path
     from .evaluate import evaluate
 
+    path = _Path(args.test_path)
+
+    if path.suffix.lower() == ".toml":
+        from .config import load_settings
+        from .llm_client import StubBackend
+
+        settings = load_settings(path)
+
+        # CLI flags override TOML settings when explicitly provided.
+        test_path = _Path(settings.eval.test_path) if settings.eval.test_path else None
+        if test_path is None:
+            print("Error: TOML config does not specify [eval] test_path.")
+            return
+        max_iter = args.max_iter if args.max_iter != 3 else settings.eval.max_iter
+        feedback_granularity = (
+            args.feedback_granularity
+            if args.feedback_granularity != "per_violation"
+            else settings.eval.feedback_granularity
+        )
+        no_refine = args.no_refine or settings.eval.no_refine
+        runs_dir = _Path(settings.eval.runs_dir)
+
+        # Wire up the LLM backend from settings.
+        if settings.llm.provider == "stub":
+            llm_backend = StubBackend(
+                canned_response='{"summary": "Stub answer.", "claims": []}',
+                model=settings.llm.model,
+            )
+        else:
+            llm_backend = None  # evaluate() creates LLMClient.from_config()
+    else:
+        test_path = path
+        max_iter = args.max_iter
+        feedback_granularity = args.feedback_granularity
+        no_refine = args.no_refine
+        runs_dir = _Path(args.runs_dir)
+        llm_backend = None
+
     run_dir = evaluate(
-        test_path=args.test_path,
-        runs_dir=args.runs_dir,
-        max_iter=args.max_iter,
-        feedback_granularity=args.feedback_granularity,
-        no_refine=args.no_refine,
+        test_path=test_path,
+        runs_dir=runs_dir,
+        max_iter=max_iter,
+        feedback_granularity=feedback_granularity,
+        no_refine=no_refine,
+        _llm_backend=llm_backend,
     )
     return run_dir
 
@@ -300,15 +346,19 @@ def _build_parser():
         "eval",
         help="Evaluate retrieval + generation quality on a labelled test set.",
         description=(
-            "Evaluate NeoRAG on a JSON test set. Measures MRR@10, Recall@5, "
-            "and (with a configured LLM) constraint-violation rates before/after "
-            "refinement. Dumps a timestamped run directory under --runs-dir."
+            "Evaluate NeoRAG on a JSON test file or a TOML settings file. "
+            "Measures MRR@10, Recall@5, and constraint-violation rates "
+            "before/after refinement. Dumps a timestamped run directory. "
+            "Example: neorag eval configs/demo.toml"
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     p_eval.add_argument(
         "test_path",
-        help="Path to JSON test file (list of {query, expected_sources} objects).",
+        help=(
+            "Path to a JSON test file ({query, expected_sources} list) "
+            "or a TOML settings file (see configs/demo.toml)."
+        ),
     )
     p_eval.add_argument(
         "--runs-dir",

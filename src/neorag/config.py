@@ -1,8 +1,18 @@
+from __future__ import annotations
+
 import os
 import tomllib
 import warnings
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple, Type
+
+from pydantic import BaseModel, Field
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+    TomlConfigSettingsSource,
+)
 
 # Paths
 DATA_DIR = Path("data")
@@ -125,3 +135,112 @@ COLLECTION_NAME = DEFAULT_COLLECTION
 # Retrieval
 TOP_K_BASE = 20  # Retrieve more for re-ranking
 TOP_K_FINAL = 3  # Final results after re-ranking
+
+
+# ---------------------------------------------------------------------------
+# Pydantic-Settings classes (improvement-plan2 step 7)
+#
+# NeoRAGSettings replaces the module-level constants above with a typed,
+# validatable settings object that can be loaded from a TOML file and
+# overridden via environment variables (prefix NEORAG_, nested delimiter __).
+#
+# The module-level constants remain for backwards compatibility with code
+# that was written before this migration.  New code should use
+# load_settings() or instantiate NeoRAGSettings() directly.
+# ---------------------------------------------------------------------------
+
+
+class LLMSettings(BaseModel):
+    """LLM backend configuration."""
+
+    provider: str = LLM_PROVIDER
+    model: str = LLM_MODEL
+    base_url: str = LLM_BASE_URL
+    max_tokens: int = LLM_MAX_TOKENS
+    timeout_s: float = LLM_TIMEOUT_S
+
+
+class EvalSettings(BaseModel):
+    """Evaluation pipeline configuration."""
+
+    test_path: Optional[str] = None
+    max_iter: int = 3
+    feedback_granularity: str = "per_violation"
+    no_refine: bool = False
+    runs_dir: str = "runs"
+
+
+class NeoRAGSettings(BaseSettings):
+    """Typed settings for the NeoRAG system.
+
+    Loaded in priority order:
+      1. ``__init__`` keyword arguments
+      2. Environment variables (prefix ``NEORAG_``, nested separator ``__``,
+         e.g. ``NEORAG_LLM__PROVIDER=stub``)
+      3. TOML file specified via ``toml_file`` in the subclass model_config
+         (use :func:`load_settings` to set this dynamically)
+      4. Default values defined in this class
+
+    Nested sections in TOML map to nested models:
+      ``[llm]`` → :class:`LLMSettings`
+      ``[eval]`` → :class:`EvalSettings`
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="NEORAG_",
+        env_nested_delimiter="__",
+    )
+
+    llm: LLMSettings = Field(default_factory=LLMSettings)
+    eval: EvalSettings = Field(default_factory=EvalSettings)
+
+    top_k_base: int = TOP_K_BASE
+    top_k_final: int = TOP_K_FINAL
+    default_collection: str = DEFAULT_COLLECTION
+
+
+def load_settings(toml_path: Optional[Path] = None) -> NeoRAGSettings:
+    """Load :class:`NeoRAGSettings` from an optional TOML file + env vars.
+
+    When ``toml_path`` is ``None`` only env vars and defaults are used.
+    When a path is given the TOML file is the lowest-priority source:
+    env vars still override it, matching the pydantic-settings convention.
+
+    Example ``configs/demo.toml``::
+
+        [llm]
+        provider = "stub"
+        model = "stub"
+
+        [eval]
+        test_path = "tests/fixtures/demo_test.json"
+    """
+    if toml_path is None:
+        return NeoRAGSettings()
+
+    resolved = str(Path(toml_path).resolve())
+
+    # Dynamically subclass so the TOML file path can be set per call.
+    class _SettingsFromToml(NeoRAGSettings):
+        model_config = SettingsConfigDict(
+            toml_file=resolved,
+            env_prefix="NEORAG_",
+            env_nested_delimiter="__",
+        )
+
+        @classmethod
+        def settings_customise_sources(
+            cls,
+            settings_cls: Type[BaseSettings],
+            init_settings: PydanticBaseSettingsSource,
+            env_settings: PydanticBaseSettingsSource,
+            dotenv_settings: PydanticBaseSettingsSource,
+            file_secret_settings: PydanticBaseSettingsSource,
+        ) -> Tuple[PydanticBaseSettingsSource, ...]:
+            return (
+                init_settings,
+                env_settings,
+                TomlConfigSettingsSource(settings_cls),
+            )
+
+    return _SettingsFromToml()

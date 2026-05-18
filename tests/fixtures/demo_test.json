@@ -1,0 +1,10 @@
+[
+  {
+    "query": "Was ist maschinelles Lernen?",
+    "expected_sources": ["doc_00001"]
+  },
+  {
+    "query": "Wie funktioniert ein neuronales Netz?",
+    "expected_sources": ["doc_00002"]
+  }
+]
