@@ -32,26 +32,26 @@ sovereignty-preserving deployments?*
 ```
   ┌─────────────────────────────────────────────────────────────────┐
   │  Ingestion & Indexing                                           │
-  │  Markdown / text → chunks + provenance.jsonl → vector index    │
+  │  Markdown / text → chunks + provenance.jsonl → vector index     │
   └────────────────────────────┬────────────────────────────────────┘
                                │ retrieved chunks (doc_id, chunk_idx)
   ┌────────────────────────────▼────────────────────────────────────┐
   │  Generation                                                     │
-  │  build_structured_prompt → LLM → Answer (JSON / Pydantic)      │
+  │  build_structured_prompt → LLM → Answer (JSON / Pydantic)       │
   └────────────────────────────┬────────────────────────────────────┘
                                │ Answer object
   ┌────────────────────────────▼────────────────────────────────────┐
   │  Neurosymbolic Validation                                       │
-  │  ① Pydantic structural check                                   │
-  │  ② Groundedness check  (citation ∈ retrieved chunks?)          │
-  │  ③ SHACL validation    (RDF view of answer vs. shapes/answer.ttl)│
-  │  → list[Violation]                                             │
+  │  ① Pydantic structural check                                    │
+  │  ② Groundedness check  (citation ∈ retrieved chunks?)           │
+  │  ③ SHACL validation   (RDF view of answer vs. shapes/answer.ttl)│
+  │  → list[Violation]                                              │
   └────────────────────────────┬────────────────────────────────────┘
                                │ violations (if any)
   ┌────────────────────────────▼────────────────────────────────────┐
-  │  Self-Refinement Loop  (refine.py)                             │
-  │  violations → structured feedback → LLM → re-validate …       │
-  │  terminates on empty violations or max_iter                    │
+  │  Self-Refinement Loop  (refine.py)                              │
+  │  violations → structured feedback → LLM → re-validate …         │
+  │  terminates on empty violations or max_iter                     │
   └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -108,7 +108,7 @@ so `neorag eval` runs fully offline.
 
 ## What NeoRAG is *not* (yet)
 
-NeoRAG is the **seed**, not the deliverable, of SoFAKTA. The following are explicitly out
+NeoRAG is the **seed**, not the deliverable, of the SoFAKTA project. The following are explicitly out
 of scope for v0.1:
 
 - A persistent property graph ("Wissensbibliothek") — SHACL validation runs on an
@@ -153,9 +153,9 @@ If you use NeoRAG in your research, please cite:
   author    = {Knoll, Carsten},
   title     = {{NeoRAG}: Neurosymbolic Answer Validation with Self-Refinement
                for Retrieval-Augmented Generation},
-  year      = {2025},
+  year      = {2026},
   url       = {https://github.com/cknoll/neorag},
-  note      = {Research prototype; Vorarbeit for the SoFAKTA proposal (FF2)},
+  note      = {Research prototype; Preliminary work for the SoFAKTA proposal},
 }
 ```
 
